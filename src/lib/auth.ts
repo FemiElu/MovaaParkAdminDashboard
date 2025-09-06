@@ -1,11 +1,11 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma } from "./db";
+// import { PrismaAdapter } from "@next-auth/prisma-adapter";
+// import { prisma } from "./db";
 // import bcrypt from 'bcryptjs' // For production password hashing
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
+  // adapter: PrismaAdapter(prisma),
   session: {
     strategy: "jwt",
   },
