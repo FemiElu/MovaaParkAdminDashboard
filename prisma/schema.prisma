@@ -1,0 +1,209 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          UserRole  @default(PARK_ADMIN)
+  parkId        String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  park     Park?     @relation(fields: [parkId], references: [id])
+
+  @@map("users")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Park {
+  id          String   @id
+  name        String
+  address     String
+  lat         Float?
+  lon         Float?
+  contactInfo Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users           User[]
+  routeConfigs    RouteConfig[]
+  drivers         Driver[]
+  tripAssignments TripAssignment[]
+  revenueSharing  RevenueSharing[]
+
+  @@map("parks")
+}
+
+model RouteConfig {
+  id              String   @id @default(cuid())
+  parkId          String
+  destination     String
+  basePrice       Int
+  vehicleCapacity Int      @default(18)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  park            Park             @relation(fields: [parkId], references: [id])
+  tripAssignments TripAssignment[]
+  revenueSharing  RevenueSharing[]
+
+  @@unique([parkId, destination])
+  @@map("route_configs")
+}
+
+model Driver {
+  id             String   @id @default(cuid())
+  parkId         String
+  name           String
+  phone          String
+  licenseNumber  String
+  qualifiedRoutes String[]
+  isActive       Boolean  @default(true)
+  rating         Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  park            Park             @relation(fields: [parkId], references: [id])
+  tripAssignments TripAssignment[]
+
+  @@unique([parkId, licenseNumber])
+  @@map("drivers")
+}
+
+model TripAssignment {
+  id              String           @id @default(cuid())
+  parkId          String
+  routeId         String
+  driverId        String
+  tripDate        DateTime         @db.Date
+  vehicleCapacity Int              @default(18)
+  status          TripStatus       @default(SCHEDULED)
+  assignedAt      DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  park   Park        @relation(fields: [parkId], references: [id])
+  route  RouteConfig @relation(fields: [routeId], references: [id])
+  driver Driver      @relation(fields: [driverId], references: [id])
+
+  @@unique([routeId, tripDate])
+  @@map("trip_assignments")
+}
+
+model RevenueSharing {
+  id               String @id @default(cuid())
+  parkId           String
+  routeId          String
+  driverPercentage Int    @default(70)
+  parkPercentage   Int    @default(30)
+
+  park  Park        @relation(fields: [parkId], references: [id])
+  route RouteConfig @relation(fields: [routeId], references: [id])
+
+  @@unique([parkId, routeId])
+  @@map("revenue_sharing")
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  parkId      String
+  title       String
+  message     String
+  type        NotificationType
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  bookingData Json?
+
+  @@map("notifications")
+}
+
+model WebhookLog {
+  id        String      @id @default(cuid())
+  type      WebhookType
+  payload   Json
+  processed Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  error     String?
+
+  @@map("webhook_logs")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  PARK_ADMIN
+  PARK_STAFF
+}
+
+enum TripStatus {
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_RECEIVED
+  CAPACITY_ALERT
+  DRIVER_ASSIGNMENT
+  SYSTEM_ALERT
+}
+
+enum WebhookType {
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_CONFIRMED
+}

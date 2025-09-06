@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { DashboardOverview } from "@/components/dashboard/overview";
 import { DashboardHeader } from "@/components/dashboard/header";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { MobileHeader } from "@/components/dashboard/mobile-header";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
+import { RoutesManager } from "@/components/routes/routes-manager";
 
-export default async function DashboardPage() {
+export default async function RoutesPage() {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -29,7 +29,15 @@ export default async function DashboardPage() {
 
         {/* Content with mobile bottom padding */}
         <main className="p-4 lg:p-6 pb-20 lg:pb-6">
-          <DashboardOverview parkId={session.user.parkId} />
+          <div className="mb-6">
+            <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+              Routes Management
+            </h1>
+            <p className="text-sm lg:text-base text-gray-600">
+              Configure destinations, pricing, and vehicle capacity
+            </p>
+          </div>
+          <RoutesManager parkId={session.user.parkId} />
         </main>
       </div>
 
