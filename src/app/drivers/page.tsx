@@ -5,13 +5,13 @@ import { DashboardHeader } from "@/components/dashboard/header";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { MobileHeader } from "@/components/dashboard/mobile-header";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
-import { RoutesManager } from "@/components/routes/routes-manager";
+import DriversPageClient from "./drivers-page-client";
 
 // Ensure this page is always rendered dynamically (session-dependent)
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-export default async function RoutesPage() {
+export default async function DriversPage() {
   const session = await getServerSession(authOptions);
 
   if (!session) {
@@ -33,15 +33,9 @@ export default async function RoutesPage() {
 
         {/* Content with mobile bottom padding */}
         <main className="p-4 lg:p-6 pb-20 lg:pb-6">
-          <div className="mb-6">
-            <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
-              Routes Management
-            </h1>
-            <p className="text-sm lg:text-base text-gray-600">
-              Configure destinations, pricing, and vehicle capacity
-            </p>
-          </div>
-          <RoutesManager parkId={session.user.parkId} />
+          <DriversPageClient
+            parkId={session.user.parkId ?? "lekki-phase-1-motor-park"}
+          />
         </main>
       </div>
 

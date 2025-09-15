@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-// import { prisma } from "@/lib/db"; // Temporarily disabled for demo
 import { z } from "zod";
+import { listRoutes, createRoute } from "@/lib/routes-store";
 
 const routeSchema = z.object({
   destination: z.string().min(1),
@@ -11,74 +11,6 @@ const routeSchema = z.object({
   isActive: z.boolean(),
   parkId: z.string().optional(),
 });
-
-// Demo data for development
-type DemoRoute = {
-  id: string;
-  parkId: string;
-  destination: string;
-  basePrice: number;
-  vehicleCapacity: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-const demoRoutes: Record<string, DemoRoute[]> = {
-  "lekki-phase-1-motor-park": [
-    {
-      id: "route1",
-      parkId: "lekki-phase-1-motor-park",
-      destination: "Ibadan",
-      basePrice: 4000,
-      vehicleCapacity: 18,
-      isActive: true,
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "route2",
-      parkId: "lekki-phase-1-motor-park",
-      destination: "Abuja",
-      basePrice: 6000,
-      vehicleCapacity: 18,
-      isActive: true,
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "route3",
-      parkId: "lekki-phase-1-motor-park",
-      destination: "Port Harcourt",
-      basePrice: 5500,
-      vehicleCapacity: 18,
-      isActive: true,
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-    },
-  ],
-  "ikeja-motor-park": [
-    {
-      id: "route4",
-      parkId: "ikeja-motor-park",
-      destination: "Ibadan",
-      basePrice: 3800,
-      vehicleCapacity: 18,
-      isActive: true,
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-    },
-    {
-      id: "route5",
-      parkId: "ikeja-motor-park",
-      destination: "Kano",
-      basePrice: 7000,
-      vehicleCapacity: 18,
-      isActive: true,
-      createdAt: "2024-01-01T00:00:00Z",
-      updatedAt: "2024-01-01T00:00:00Z",
-    },
-  ],
-};
 
 export async function GET(request: NextRequest) {
   try {
@@ -99,9 +31,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    // Return demo data for the specific park
-    const routes = demoRoutes[parkId] || [];
-
+    // Return in-memory data for the specific park
+    const routes = listRoutes(parkId) || [];
     return NextResponse.json({ success: true, data: routes });
   } catch (error) {
     console.error("Error fetching routes:", error);
@@ -145,7 +76,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if route already exists for this park
-    const existingRoutes = demoRoutes[parkId] || [];
+    const existingRoutes = listRoutes(parkId) || [];
     const existingRoute = existingRoutes.find(
       (r) => r.destination === data.destination
     );
@@ -159,27 +90,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create new route in demo data
-    const newRoute = {
-      id: `route_${Date.now()}`,
-      parkId,
-      destination: data.destination,
-      basePrice: data.basePrice,
-      vehicleCapacity: data.vehicleCapacity,
-      isActive: data.isActive,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Add to demo data
-    if (!demoRoutes[parkId]) {
-      demoRoutes[parkId] = [];
-    }
-    demoRoutes[parkId].push(newRoute);
-
-    // TODO: Notify passenger app about new route
-    // await notifyPassengerApp('route-created', route)
-
+    // Create new route in in-memory data
+    const newRoute = createRoute({ ...data, parkId });
     return NextResponse.json(
       { success: true, data: newRoute },
       { status: 201 }

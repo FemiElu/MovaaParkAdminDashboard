@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { RouteConfig } from "@/types";
+import { RouteConfig, Driver } from "@/types";
 import { RouteCard } from "./route-card";
 import { RouteForm } from "./route-form";
 import { PlusIcon } from "@heroicons/react/24/outline";
@@ -12,6 +12,7 @@ interface RoutesManagerProps {
 
 export function RoutesManager({ parkId }: RoutesManagerProps) {
   const [routes, setRoutes] = useState<RouteConfig[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingRoute, setEditingRoute] = useState<RouteConfig | null>(null);
@@ -30,11 +31,24 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
     }
   }, [parkId]);
 
+  const fetchDrivers = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/drivers?parkId=${parkId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDrivers(Array.isArray(data.data?.data) ? data.data.data : []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch drivers:", error);
+    }
+  }, [parkId]);
+
   useEffect(() => {
     if (parkId) {
       fetchRoutes();
+      fetchDrivers();
     }
-  }, [parkId, fetchRoutes]);
+  }, [parkId, fetchRoutes, fetchDrivers]);
 
   const handleRouteAdded = (newRoute: RouteConfig) => {
     setRoutes((prev) => [...prev, newRoute]);
@@ -46,10 +60,6 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
       prev.map((r) => (r.id === updatedRoute.id ? updatedRoute : r))
     );
     setEditingRoute(null);
-  };
-
-  const handleRouteDeleted = (routeId: string) => {
-    setRoutes((prev) => prev.filter((r) => r.id !== routeId));
   };
 
   if (loading) {
@@ -117,14 +127,18 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-          {routes.map((route) => (
-            <RouteCard
-              key={route.id}
-              route={route}
-              onEdit={setEditingRoute}
-              onDelete={handleRouteDeleted}
-            />
-          ))}
+          {routes.map((route) => {
+            const driverCount = drivers.filter(
+              (d) => d.qualifiedRoute === route.destination
+            ).length;
+            return (
+              <RouteCard
+                key={route.id}
+                route={route}
+                driverCount={driverCount}
+              />
+            );
+          })}
         </div>
       )}
 

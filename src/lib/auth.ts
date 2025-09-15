@@ -1,11 +1,20 @@
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+// Optional adapter: disabled in demo to avoid DB requirement
 // import { PrismaAdapter } from "@next-auth/prisma-adapter";
 // import { prisma } from "./db";
 // import bcrypt from 'bcryptjs' // For production password hashing
 
+const useDbAdapter = process.env.NEXT_PUBLIC_USE_DB === "true";
+
 export const authOptions: NextAuthOptions = {
-  // adapter: PrismaAdapter(prisma),
+  secret: process.env.NEXTAUTH_SECRET,
+  // Only enable Prisma adapter when explicitly requested
+  adapter: useDbAdapter
+    ? (await import("@next-auth/prisma-adapter")).PrismaAdapter(
+        (await import("./db")).prisma
+      )
+    : undefined,
   session: {
     strategy: "jwt",
   },

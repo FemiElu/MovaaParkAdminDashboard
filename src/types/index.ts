@@ -32,9 +32,18 @@ export interface Driver {
   name: string;
   phone: string;
   licenseNumber: string;
-  qualifiedRoutes: string[];
+  licenseExpiry?: string;
+  qualifiedRoute: string; // Single route destination (e.g., "Ibadan")
   isActive: boolean;
   rating?: number;
+  vehiclePlateNumber?: string;
+  address?: string;
+  photo?: string;
+  documents?: {
+    type: "DRIVER_LICENSE" | "OTHER";
+    number?: string;
+    note?: string;
+  }[];
   createdAt: string;
   updatedAt: string;
 }
@@ -193,8 +202,13 @@ export interface DriverFormData {
   name: string;
   phone: string;
   licenseNumber: string;
-  qualifiedRoutes: string[];
+  licenseExpiry?: string;
+  qualifiedRoute: string; // Single route destination
   isActive: boolean;
+  rating?: number;
+  vehiclePlateNumber?: string;
+  address?: string;
+  photo?: string;
 }
 
 export interface TripAssignmentFormData {

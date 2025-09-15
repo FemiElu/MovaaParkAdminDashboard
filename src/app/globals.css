@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ffffff; /* Forced light background */
+  --foreground: #1f2937; /* Neutral base text (gray-800) */
+  --primary: #006400; /* Brand green for accents */
 }
 
 @theme inline {
@@ -12,12 +13,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/* Disable automatic dark mode to match brand theme */
 
 body {
   background: var(--background);

@@ -224,12 +224,7 @@ export function parseWebhookPayload(payloadString: string): {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function isRateLimited(
-  _parkId: string,
-  _windowMs: number = 60000, // 1 minute
-  _maxRequests: number = 100
-): boolean {
+export function isRateLimited(): boolean {
   // In a real implementation, this would use Redis or similar
   // For demo purposes, we'll always return false (no rate limiting)
   return false;

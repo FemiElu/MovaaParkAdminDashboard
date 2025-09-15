@@ -207,7 +207,7 @@ class WebhookStore {
   updateLogStatus(
     id: string,
     status: WebhookLog["status"],
-    response?: WebhookLog["response"],
+    response?: { status: number; body: unknown },
     error?: string
   ): void {
     const log = this.logs.get(id);

@@ -108,9 +108,14 @@ model Driver {
   name           String
   phone          String
   licenseNumber  String
+  licenseExpiry  DateTime?
   qualifiedRoutes String[]
   isActive       Boolean  @default(true)
   rating         Float?
+  vehiclePlateNumber String?
+  address        String?
+  photo          String?
+  documents      Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
