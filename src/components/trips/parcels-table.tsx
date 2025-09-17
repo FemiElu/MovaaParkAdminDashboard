@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { ExportButtons } from "./export-buttons";
 import { PhoneIcon, PrinterIcon } from "@heroicons/react/24/outline";
 
 interface ParcelsTableProps {
@@ -106,7 +107,21 @@ export function ParcelsTable({ trip, parcels, vehicle }: ParcelsTableProps) {
             <PrinterIcon className="h-4 w-4 mr-2" />
             Print Labels
           </Button>
-          <Button size="sm">Assign Parcels</Button>
+          <ExportButtons
+            size="sm"
+            variant="parcels"
+            tripId={trip.id}
+            parcels={parcels.map((p) => ({
+              id: p.id,
+              senderName: p.senderName,
+              senderPhone: p.senderPhone,
+              receiverName: p.receiverName,
+              receiverPhoneMasked: p.receiverPhoneMasked,
+              receiverPhone: p.receiverPhone,
+              fee: p.fee,
+              status: p.status,
+            }))}
+          />
         </div>
       </div>
 

@@ -8,6 +8,8 @@ import { tripsStore } from "@/lib/trips-store";
 import { BackButton } from "@/components/ui/back-button";
 import Link from "next/link";
 import { TripDetailTabs } from "@/components/trips/trip-detail-tabs";
+import { AssignDriverModal } from "@/components/trips/assign-driver-modal";
+import { AssignParcelsModal } from "@/components/trips/assign-parcels-modal";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -145,6 +147,9 @@ export default async function TripDetailPage({
               <p className="text-lg font-semibold text-gray-900">
                 {driver?.name || "Unassigned"}
               </p>
+              <div className="mt-3">
+                <AssignDriverModal parkId={parkId} tripId={trip.id} />
+              </div>
             </div>
             <div className="bg-white p-4 rounded-lg border">
               <h3 className="text-sm font-medium text-gray-500">Passengers</h3>
@@ -157,6 +162,13 @@ export default async function TripDetailPage({
               <p className="text-lg font-semibold text-gray-900">
                 {parcels.length} / {trip.maxParcelsPerVehicle}
               </p>
+              <div className="mt-3">
+                <AssignParcelsModal
+                  parkId={parkId}
+                  tripId={trip.id}
+                  maxParcels={trip.maxParcelsPerVehicle}
+                />
+              </div>
             </div>
           </div>
 

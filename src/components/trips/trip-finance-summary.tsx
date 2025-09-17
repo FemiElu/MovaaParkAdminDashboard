@@ -24,7 +24,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { ArrowDownTrayIcon, PlusIcon } from "@heroicons/react/24/outline";
+import { ExportButtons } from "./export-buttons";
+import { PlusIcon } from "@heroicons/react/24/outline";
 
 interface TripFinanceSummaryProps {
   trip: Trip;
@@ -215,10 +216,21 @@ export function TripFinanceSummary({
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" size="sm" onClick={exportCSV}>
-            <ArrowDownTrayIcon className="h-4 w-4 mr-2" />
-            Export CSV
-          </Button>
+          <ExportButtons
+            size="sm"
+            variant="finance"
+            tripId={trip.id}
+            finance={{
+              passengerRevenue,
+              parcelRevenue,
+              driverPassengerSplit,
+              parkPassengerSplit,
+              driverParcelSplit,
+              parkParcelSplit,
+              driverTotal,
+              parkTotal,
+            }}
+          />
         </div>
       </div>
 

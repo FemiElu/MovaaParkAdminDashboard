@@ -40,6 +40,7 @@ export interface Booking {
   amountPaid: number;
   paymentStatus: "pending" | "confirmed" | "refunded";
   bookingStatus: "confirmed" | "pending" | "cancelled" | "refunded";
+  checkedIn?: boolean;
   paymentHoldExpiresAt?: number; // timestamp for 5-minute hold
   createdAt: string;
   updatedAt: string;
@@ -683,6 +684,29 @@ class TripsStore {
     this.persistToGlobal();
 
     return adjustment;
+  }
+
+  checkInBooking(
+    tripId: string,
+    bookingId: string
+  ): { success: boolean; reason?: string } {
+    const trip = this.getTrip(tripId);
+    if (!trip) return { success: false, reason: "Trip not found" };
+    const booking = this.bookings.find(
+      (b) => b.id === bookingId && b.tripId === tripId
+    );
+    if (!booking) return { success: false, reason: "Booking not found" };
+    if (
+      booking.bookingStatus === "cancelled" ||
+      booking.bookingStatus === "refunded"
+    ) {
+      return { success: false, reason: "Booking not active" };
+    }
+    booking.checkedIn = true;
+    booking.updatedAt = new Date().toISOString();
+    this.logAudit("checked_in", "Booking", bookingId, { tripId });
+    this.persistToGlobal();
+    return { success: true };
   }
 }
 

@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { ExportButtons } from "./export-buttons";
 import {
   PhoneIcon,
   ChatBubbleLeftRightIcon,
@@ -127,10 +128,23 @@ export function PassengerManifestTable({
           </Select>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm">
-            Export CSV
-          </Button>
-          <Button size="sm">Print Manifest</Button>
+          <ExportButtons
+            size="sm"
+            variant="passengers"
+            tripId={trip.id}
+            passengers={bookings.map((b) => ({
+              seatNumber: b.seatNumber,
+              passengerName: b.passengerName,
+              passengerPhone: b.passengerPhone,
+              nokName: b.nokName,
+              nokPhone: b.nokPhone,
+              nokAddress: b.nokAddress,
+              amountPaid: b.amountPaid,
+              paymentStatus: b.paymentStatus,
+              bookingStatus: b.bookingStatus,
+              createdAt: b.createdAt,
+            }))}
+          />
         </div>
       </div>
 
@@ -248,8 +262,28 @@ export function PassengerManifestTable({
                   <TableCell>{getStatusBadge(booking.bookingStatus)}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <Button variant="outline" size="sm" className="text-xs">
-                        Check-in
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-xs"
+                        onClick={async () => {
+                          try {
+                            const res = await fetch(
+                              `/api/trips/${trip.id}/checkin`,
+                              {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ bookingId: booking.id }),
+                              }
+                            );
+                            if (!res.ok) return;
+                            booking.checkedIn = true;
+                          } catch {}
+                        }}
+                        disabled={!!booking.checkedIn}
+                        aria-disabled={!!booking.checkedIn}
+                      >
+                        {booking.checkedIn ? "Checked-in" : "Check-in"}
                       </Button>
                       <Button
                         variant="outline"
