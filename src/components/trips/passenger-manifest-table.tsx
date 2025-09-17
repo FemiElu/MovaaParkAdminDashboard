@@ -177,8 +177,76 @@ export function PassengerManifestTable({
         </div>
       </div>
 
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      {/* Mobile list (cards) */}
+      <div className="sm:hidden space-y-3">
+        {filteredBookings.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No passengers found
+          </div>
+        ) : (
+          filteredBookings.map((booking) => (
+            <div key={booking.id} className="border rounded-lg p-3 bg-white">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm text-gray-500">
+                    Seat {booking.seatNumber}
+                  </p>
+                  <p className="font-medium truncate">
+                    {booking.passengerName}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {booking.passengerPhone}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">
+                    {formatCurrency(booking.amountPaid)}
+                  </p>
+                  <div className="mt-1 flex items-center gap-2 justify-end">
+                    {getPaymentStatusBadge(booking.paymentStatus)}
+                    {getStatusBadge(booking.bookingStatus)}
+                  </div>
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-gray-600">
+                NOK: {booking.nokName} • {booking.nokPhone}
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/trips/${trip.id}/checkin`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ bookingId: booking.id }),
+                      });
+                      if (!res.ok) return;
+                      booking.checkedIn = true;
+                    } catch {}
+                  }}
+                  disabled={!!booking.checkedIn}
+                  aria-disabled={!!booking.checkedIn}
+                >
+                  {booking.checkedIn ? "Checked-in" : "Check-in"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs text-red-600 hover:text-red-700"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden sm:block border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>

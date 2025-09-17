@@ -182,8 +182,46 @@ export function ParcelsTable({ trip, parcels, vehicle }: ParcelsTableProps) {
         </div>
       )}
 
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      {/* Mobile list (cards) */}
+      <div className="sm:hidden space-y-3">
+        {filteredParcels.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">No parcels found</div>
+        ) : (
+          filteredParcels.map((parcel) => (
+            <div key={parcel.id} className="border rounded-lg p-3 bg-white">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-xs text-gray-500">{parcel.id}</p>
+                  <p className="font-medium truncate">{parcel.senderName}</p>
+                  <p className="text-xs text-gray-500 truncate">
+                    → {parcel.receiverName}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-medium">
+                    {formatCurrency(parcel.fee)}
+                  </p>
+                  <div className="mt-1">{getStatusBadge(parcel.status)}</div>
+                </div>
+              </div>
+              <div className="mt-2 text-xs text-gray-600">
+                Phone: {parcel.receiverPhone || parcel.receiverPhoneMasked}
+              </div>
+              <div className="mt-3 flex items-center gap-2">
+                <Button variant="outline" size="sm" className="text-xs">
+                  Update Status
+                </Button>
+                <Button variant="outline" size="sm" className="text-xs">
+                  Print Label
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden sm:block border rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow>
