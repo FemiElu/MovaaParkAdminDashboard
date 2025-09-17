@@ -40,13 +40,16 @@ export function TripDetailTabs({
   return (
     <div className="bg-white rounded-lg border">
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="flex space-x-8 px-6" aria-label="Tabs">
+      <div className="border-b border-gray-200 sticky top-0 z-10 bg-white">
+        <nav
+          className="flex gap-4 px-3 sm:px-6 overflow-x-auto no-scrollbar"
+          aria-label="Tabs"
+        >
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`shrink-0 py-3 sm:py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === tab.id
                   ? "border-green-500 text-green-600"
                   : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -65,7 +68,7 @@ export function TripDetailTabs({
       </div>
 
       {/* Tab Content */}
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         {activeTab === "passengers" && (
           <PassengerManifestTable
             trip={trip}

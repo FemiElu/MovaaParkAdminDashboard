@@ -32,7 +32,7 @@ export default async function TripsPage() {
           <h1 className="text-2xl font-bold mb-6">Trip Scheduling</h1>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
             <div className="bg-white p-4 rounded-lg border">
               <h3 className="text-sm font-medium text-gray-500">Total Trips</h3>
               <p className="text-2xl font-bold text-green-600">
@@ -59,16 +59,16 @@ export default async function TripsPage() {
 
           {/* Trips List */}
           <div className="bg-white rounded-lg border">
-            <div className="p-6 border-b">
+            <div className="p-3 sm:p-6 border-b">
               <h2 className="text-lg font-semibold">Upcoming Trips</h2>
             </div>
-            <div className="p-6">
+            <div className="p-3 sm:p-6">
               {trips.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
                   No trips scheduled yet
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {trips.slice(0, 10).map((trip) => {
                     const route = {
                       id: trip.routeId,
@@ -86,9 +86,9 @@ export default async function TripsPage() {
                         href={`/trips/${trip.id}`}
                         className="block"
                       >
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
+                        <div className="flex items-center justify-between p-3 sm:p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer">
                           <div className="flex-1">
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3 sm:gap-4">
                               <div>
                                 <h3 className="font-medium">
                                   {route.destination}
