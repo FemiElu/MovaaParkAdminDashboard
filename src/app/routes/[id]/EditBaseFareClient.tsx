@@ -6,3 +6,5 @@ export default function EditBaseFareClient({ route }: { route: RouteConfig }) {
   return <EditBaseFare route={route} />;
 }
 
+
+
