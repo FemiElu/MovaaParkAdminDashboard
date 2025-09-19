@@ -2,6 +2,8 @@
 // Data models and store logic for Trip, Booking, Driver, Parcel, AuditLog, Adjustment, Vehicle
 // Persists data across reloads using globalThis and localStorage
 
+import { listRoutes } from "./routes-store";
+
 // Data Models
 export interface Vehicle {
   id: string;
@@ -133,14 +135,7 @@ const MOCK_VEHICLES: Vehicle[] = [
   },
 ];
 
-const MOCK_ROUTES = [
-  { id: "route_1", destination: "Ibadan", basePrice: 4000 },
-  { id: "route_2", destination: "Abuja", basePrice: 6000 },
-  { id: "route_3", destination: "Port Harcourt", basePrice: 5500 },
-  { id: "route_4", destination: "Kano", basePrice: 7000 },
-  { id: "route_5", destination: "Enugu", basePrice: 5000 },
-  { id: "route_6", destination: "Ajah", basePrice: 2000 },
-];
+// Routes are now fetched from the routes store
 
 const MOCK_DRIVERS = [
   {
@@ -279,37 +274,45 @@ class TripsStore {
     }
 
     if (this.trips.length === 0) {
-      // Create trips for next 7 days
+      // Create trips for next 7 days using real routes
       const today = new Date();
+      const parkIds = [
+        "lekki-phase-1-motor-park",
+        "ikeja-motor-park",
+        "ajah-motor-park",
+      ];
+
       for (let i = 0; i < 7; i++) {
         const date = new Date(today);
         date.setDate(today.getDate() + i);
         const dateStr = date.toISOString().split("T")[0];
 
-        MOCK_ROUTES.forEach((route, routeIndex) => {
-          const parkId = [
-            "lekki-phase-1-motor-park",
-            "ikeja-motor-park",
-            "ajah-motor-park",
-          ][routeIndex % 3];
+        // Create trips for each park using their actual routes
+        parkIds.forEach((parkId) => {
+          const routes = listRoutes(parkId);
           const vehicle = this.vehicles.find((v) => v.parkId === parkId);
+
           if (vehicle) {
-            const trip: Trip = {
-              id: `trip_${dateStr}_${route.id}`,
-              parkId,
-              routeId: route.id,
-              date: dateStr,
-              unitTime: "06:00",
-              vehicleId: vehicle.id,
-              seatCount: vehicle.seatCount,
-              confirmedBookingsCount: 0,
-              maxParcelsPerVehicle: vehicle.maxParcelsPerVehicle,
-              status: "scheduled",
-              payoutStatus: "NotScheduled",
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-            this.trips.push(trip);
+            routes.forEach((route) => {
+              if (route.isActive) {
+                const trip: Trip = {
+                  id: `trip_${dateStr}_${route.id}`,
+                  parkId,
+                  routeId: route.id,
+                  date: dateStr,
+                  unitTime: "06:00",
+                  vehicleId: vehicle.id,
+                  seatCount: vehicle.seatCount,
+                  confirmedBookingsCount: 0,
+                  maxParcelsPerVehicle: vehicle.maxParcelsPerVehicle,
+                  status: "scheduled",
+                  payoutStatus: "NotScheduled",
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                };
+                this.trips.push(trip);
+              }
+            });
           }
         });
       }
@@ -357,7 +360,7 @@ class TripsStore {
 
     // Special case: 17 confirmed bookings for Ajah→Ibadan on 2025-08-29
     const ajahTrip = this.trips.find(
-      (t) => t.routeId === "route_6" && t.date === "2025-08-29"
+      (t) => t.routeId === "r_ajah_1" && t.date === "2025-08-29"
     );
     if (ajahTrip) {
       for (let i = 1; i <= 17; i++) {
@@ -389,7 +392,8 @@ class TripsStore {
     let bookingCount = 0;
 
     remainingTrips.forEach((trip) => {
-      const route = MOCK_ROUTES.find((r) => r.id === trip.routeId);
+      const routes = listRoutes(trip.parkId);
+      const route = routes.find((r) => r.id === trip.routeId);
       if (!route) return;
 
       const numBookings = Math.floor(Math.random() * 8) + 1; // 1-8 bookings per trip

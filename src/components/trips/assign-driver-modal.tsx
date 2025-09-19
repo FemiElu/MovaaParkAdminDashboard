@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,34 +18,36 @@ import {
 } from "@/components/ui/select";
 
 interface AssignDriverModalProps {
-  parkId: string;
-  tripId: string;
-  trigger?: React.ReactNode;
-  onAssigned?: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  trip: {
+    id: string;
+    parkId: string;
+    routeId: string;
+    date: string;
+    unitTime: string;
+  };
+  drivers: Array<{
+    id: string;
+    name: string;
+    phone: string;
+    rating: number;
+    parkId: string;
+  }>;
+  onAssign: (driverId: string) => Promise<void>;
 }
 
 export function AssignDriverModal({
-  parkId,
-  tripId,
-  trigger,
-  onAssigned,
+  isOpen,
+  onClose,
+  trip,
+  drivers,
+  onAssign,
 }: AssignDriverModalProps) {
-  const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [drivers, setDrivers] = useState<
-    Array<{ id: string; name: string; phone: string }>
-  >([]);
   const [search, setSearch] = useState("");
   const [driverId, setDriverId] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    fetch(`/api/parks/${parkId}/drivers`)
-      .then((r) => r.json())
-      .then((d) => setDrivers(d.data ?? []))
-      .catch(() => setDrivers([]));
-  }, [open, parkId]);
 
   const filtered = useMemo(() => {
     return drivers.filter((d) =>
@@ -58,36 +59,21 @@ export function AssignDriverModal({
     if (!driverId) return;
     setLoading(true);
     setError(null);
-    const res = await fetch(`/api/trips/${tripId}/assign-driver`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ driverId }),
-    });
-    setLoading(false);
-    if (res.status === 409) {
-      setError("DRIVER_CONFLICT");
-      return;
-    }
-    if (!res.ok) {
+    try {
+      await onAssign(driverId);
+    } catch (err) {
       setError("Failed to assign driver");
-      return;
+      console.error("Driver assignment error:", err);
+    } finally {
+      setLoading(false);
     }
-    setOpen(false);
-    onAssigned?.();
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button variant="outline" size="sm">
-            Assign Driver
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg w-[92vw] sm:w-[480px]">
         <DialogHeader>
-          <DialogTitle>Assign Driver</DialogTitle>
+          <DialogTitle>Assign Driver to {trip.routeId}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
@@ -125,7 +111,7 @@ export function AssignDriverModal({
           )}
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
             <Button onClick={submit} disabled={!driverId || loading}>

@@ -8,7 +8,7 @@ import { tripsStore } from "@/lib/trips-store";
 import { BackButton } from "@/components/ui/back-button";
 import Link from "next/link";
 import { TripDetailTabs } from "@/components/trips/trip-detail-tabs";
-import { AssignDriverModal } from "@/components/trips/assign-driver-modal";
+import { TripDriverAssignment } from "@/components/trips/trip-driver-assignment";
 import { AssignParcelsModal } from "@/components/trips/assign-parcels-modal";
 
 export const dynamic = "force-dynamic";
@@ -142,15 +142,11 @@ export default async function TripDetailPage({
                 {vehicle?.name || "Unknown"}
               </p>
             </div>
-            <div className="bg-white p-4 rounded-lg border">
-              <h3 className="text-sm font-medium text-gray-500">Driver</h3>
-              <p className="text-lg font-semibold text-gray-900">
-                {driver?.name || "Unassigned"}
-              </p>
-              <div className="mt-3">
-                <AssignDriverModal parkId={parkId} tripId={trip.id} />
-              </div>
-            </div>
+            <TripDriverAssignment
+              trip={trip}
+              driver={driver}
+              drivers={drivers}
+            />
             <div className="bg-white p-4 rounded-lg border">
               <h3 className="text-sm font-medium text-gray-500">Passengers</h3>
               <p className="text-lg font-semibold text-gray-900">

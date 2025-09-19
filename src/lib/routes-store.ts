@@ -60,6 +60,28 @@ const data: Record<string, RouteConfig[]> = globalThis.__routesData ?? {
       updatedAt: new Date().toISOString(),
     },
   ],
+  "ajah-motor-park": [
+    {
+      id: "r_ajah_1",
+      parkId: "ajah-motor-park",
+      destination: "Ibadan",
+      basePrice: 2000,
+      vehicleCapacity: 14,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: "r_ajah_2",
+      parkId: "ajah-motor-park",
+      destination: "Lagos Island",
+      basePrice: 1500,
+      vehicleCapacity: 14,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ],
 };
 
 // Persist data globally for development
