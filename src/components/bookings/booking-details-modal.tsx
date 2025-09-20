@@ -349,6 +349,3 @@ export function BookingDetailsModal({
     </div>
   );
 }
-
-
-

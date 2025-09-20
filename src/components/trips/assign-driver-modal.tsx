@@ -73,7 +73,7 @@ export function AssignDriverModal({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-lg w-[92vw] sm:w-[480px]">
         <DialogHeader>
-          <DialogTitle>Assign Driver to {trip.routeId}</DialogTitle>
+          <DialogTitle>Assign Driver to Trip</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">

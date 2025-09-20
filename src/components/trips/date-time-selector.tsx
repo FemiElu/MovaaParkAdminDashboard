@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Calendar } from "lucide-react";
+import { Calendar, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,16 +13,12 @@ import { cn } from "@/lib/utils";
 
 interface DateTimeSelectorProps {
   selectedDate: string;
-  selectedTime: string;
   onDateChange: (date: string) => void;
-  onTimeChange: (time: string) => void;
 }
 
 export function DateTimeSelector({
   selectedDate,
-  selectedTime,
   onDateChange,
-  onTimeChange,
 }: DateTimeSelectorProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
@@ -61,34 +57,31 @@ export function DateTimeSelector({
     onDateChange(e.target.value);
   };
 
-  const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onTimeChange(e.target.value);
-  };
-
-  const isToday = selectedDate === formatDate(today);
   const isTomorrow = selectedDate === formatDate(tomorrow);
 
   return (
-    <div className="bg-white rounded-lg border p-6 mb-6">
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+    <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         {/* Date Selector */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-gray-500" />
+            <Calendar className="h-4 w-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">Date:</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 sm:flex-none">
             <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   className={cn(
-                    "w-[140px] justify-start text-left font-normal",
+                    "w-full sm:w-[160px] justify-start text-left font-normal",
                     !selectedDate && "text-muted-foreground"
                   )}
                 >
-                  {formatDisplayDate(selectedDate)}
+                  {selectedDate
+                    ? formatDisplayDate(selectedDate)
+                    : "Select date"}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -109,7 +102,7 @@ export function DateTimeSelector({
               size="sm"
               onClick={handleTomorrowClick}
               className={cn(
-                "px-3 py-1 text-xs font-medium transition-all duration-200",
+                "px-3 py-2 text-sm font-medium transition-all duration-200 whitespace-nowrap",
                 isTomorrow
                   ? "bg-green-600 text-white hover:bg-green-700"
                   : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -120,30 +113,19 @@ export function DateTimeSelector({
           </div>
         </div>
 
-        {/* Time Selector */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">Time:</span>
-          <div className="relative">
-            <Input
-              type="time"
-              value={selectedTime}
-              onChange={handleTimeChange}
-              className="w-[120px] text-center font-mono text-sm"
-            />
-          </div>
-        </div>
-      </div>
+        {/* Static Departure Time */}
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-gray-500" />
 
-      {/* Selected Date/Time Display */}
-      <div className="mt-4 pt-4 border-t border-gray-100">
-        <div className="flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-gray-900">
-              {formatDisplayDate(selectedDate)}
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Departure time: {selectedTime}
-            </p>
+            <span className="text-sm font-medium text-gray-700">
+              Departure:
+            </span>
+            <div className="px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+              <span className="text-sm font-semibold text-green-700">
+                6:00 AM
+              </span>
+            </div>
           </div>
         </div>
       </div>

@@ -24,15 +24,16 @@ export function TripsPageClient({
   vehicles,
   drivers,
 }: TripsPageClientProps) {
-  // Initialize with default time - use empty string for date to avoid hydration mismatch
-  const defaultTime = "06:00";
-
   const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState(defaultTime);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  // Static departure time
+  const departureTime = "06:00";
 
   // Set today's date after component mounts to avoid hydration mismatch
   useEffect(() => {
+    setIsClient(true);
     if (!selectedDate) {
       const today = new Date().toISOString().split("T")[0];
       setSelectedDate(today);
@@ -42,10 +43,15 @@ export function TripsPageClient({
   // Get routes for the current park
   const routes = useMemo(() => listRoutes(parkId), [parkId]);
 
-  // Get trips filtered by date, time, and route
+  // Get trips filtered by date and route (time is static 06:00)
   const filteredTrips = useMemo(() => {
+    // Don't filter trips until we have a valid date to avoid hydration mismatch
+    if (!selectedDate || !isClient) {
+      return [];
+    }
+
     const allTrips = tripsStore.getTrips(parkId, selectedDate);
-    let filtered = allTrips.filter((trip) => trip.unitTime === selectedTime);
+    let filtered = allTrips.filter((trip) => trip.unitTime === departureTime);
 
     // Filter by route if selected
     if (selectedRouteId) {
@@ -53,7 +59,7 @@ export function TripsPageClient({
     }
 
     return filtered;
-  }, [parkId, selectedDate, selectedTime, selectedRouteId]);
+  }, [parkId, selectedDate, departureTime, selectedRouteId, isClient]);
 
   // Calculate simplified stats for the selected date/time/route
   const stats = useMemo(() => {
@@ -70,19 +76,10 @@ export function TripsPageClient({
 
   return (
     <div className="space-y-6">
-      {/* Date and Time Selector */}
+      {/* Date Selector */}
       <DateTimeSelector
         selectedDate={selectedDate}
-        selectedTime={selectedTime}
         onDateChange={setSelectedDate}
-        onTimeChange={setSelectedTime}
-      />
-
-      {/* Route Tabs */}
-      <RouteTabs
-        routes={routes}
-        selectedRouteId={selectedRouteId}
-        onRouteSelect={setSelectedRouteId}
       />
 
       {/* Quick Stats - Simplified */}
@@ -144,6 +141,13 @@ export function TripsPageClient({
         </div>
       </div>
 
+      {/* Route Tabs */}
+      <RouteTabs
+        routes={routes}
+        selectedRouteId={selectedRouteId}
+        onRouteSelect={setSelectedRouteId}
+      />
+
       {/* Trips List */}
       <div className="bg-white rounded-xl border border-gray-200">
         <div className="p-6 border-b border-gray-100">
@@ -153,20 +157,26 @@ export function TripsPageClient({
                 Trip Schedule
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                {filteredTrips.length} trip
-                {filteredTrips.length !== 1 ? "s" : ""} scheduled for{" "}
-                {selectedDate} at {selectedTime}
-                {selectedRouteId && (
-                  <span>
-                    {" "}
-                    to{" "}
-                    <span className="font-medium text-green-600">
-                      {
-                        routes.find((r) => r.id === selectedRouteId)
-                          ?.destination
-                      }
-                    </span>
-                  </span>
+                {!selectedDate ? (
+                  "Loading trips..."
+                ) : (
+                  <>
+                    {filteredTrips.length} trip
+                    {filteredTrips.length !== 1 ? "s" : ""} scheduled for{" "}
+                    {selectedDate} at {departureTime}
+                    {selectedRouteId && (
+                      <span>
+                        {" "}
+                        to{" "}
+                        <span className="font-medium text-green-600">
+                          {
+                            routes.find((r) => r.id === selectedRouteId)
+                              ?.destination
+                          }
+                        </span>
+                      </span>
+                    )}
+                  </>
                 )}
               </p>
             </div>
@@ -195,8 +205,9 @@ export function TripsPageClient({
                 No trips scheduled
               </h3>
               <p className="text-gray-600 mb-4">
-                There are no trips scheduled for {selectedDate} at{" "}
-                {selectedTime}.
+                {!selectedDate
+                  ? "Loading trips..."
+                  : `There are no trips scheduled for ${selectedDate} at 6:00 AM.`}
               </p>
               <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                 Schedule New Trip
