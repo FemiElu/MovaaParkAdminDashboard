@@ -7,8 +7,6 @@ export async function POST(
 ) {
   try {
     const { tripId } = params;
-    const body = await request.json();
-    const { driverId }: { driverId: string } = body;
 
     if (!tripId) {
       return NextResponse.json(
@@ -17,28 +15,9 @@ export async function POST(
       );
     }
 
-    if (!driverId) {
-      return NextResponse.json(
-        { success: false, error: "Driver ID is required" },
-        { status: 400 }
-      );
-    }
-
-    const result = tripsStore.assignDriverWithConflictCheck(tripId, driverId);
+    const result = tripsStore.publishTrip(tripId);
 
     if (!result.success) {
-      if (result.conflictTripId) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: result.error,
-            conflictType: "DRIVER_CONFLICT",
-            conflictingTripId: result.conflictTripId,
-          },
-          { status: 409 }
-        );
-      }
-
       return NextResponse.json(
         { success: false, error: result.error },
         { status: 400 }
@@ -47,10 +26,10 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: "Driver assigned successfully",
+      message: "Trip published successfully",
     });
   } catch (error) {
-    console.error("Error assigning driver:", error);
+    console.error("Error publishing trip:", error);
     return NextResponse.json(
       { success: false, error: "Internal server error" },
       { status: 500 }

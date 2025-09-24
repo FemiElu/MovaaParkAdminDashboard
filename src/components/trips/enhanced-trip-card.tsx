@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { Users, Package, DollarSign, User, UserPlus } from "lucide-react";
+import {
+  Users,
+  Package,
+  DollarSign,
+  User,
+  UserPlus,
+  Edit,
+  Calendar,
+  Repeat,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Trip, Vehicle, tripsStore } from "@/lib/trips-store";
@@ -26,6 +35,7 @@ interface EnhancedTripCardProps {
   }>;
   bookingsCount: number;
   parcelsCount: number;
+  onEdit?: (trip: Trip) => void;
 }
 
 export function EnhancedTripCard({
@@ -35,12 +45,14 @@ export function EnhancedTripCard({
   drivers,
   bookingsCount,
   parcelsCount,
+  onEdit,
 }: EnhancedTripCardProps) {
   const [showAssignDriverModal, setShowAssignDriverModal] = useState(false);
   const getStatusBadge = (status: Trip["status"]) => {
     const colors = {
-      scheduled: "bg-blue-100 text-blue-800 border-blue-200",
-      active: "bg-green-100 text-green-800 border-green-200",
+      draft: "bg-gray-100 text-gray-800 border-gray-200",
+      published: "bg-green-100 text-green-800 border-green-200",
+      live: "bg-blue-100 text-blue-800 border-blue-200",
       completed: "bg-gray-100 text-gray-800 border-gray-200",
       cancelled: "bg-red-100 text-red-800 border-red-200",
     };
@@ -52,31 +64,34 @@ export function EnhancedTripCard({
     );
   };
 
-  const getAvailabilityStatus = () => {
-    const utilization = (bookingsCount / trip.seatCount) * 100;
+  const getSeatAvailabilityBadge = () => {
+    const seatsLeft = trip.seatCount - trip.confirmedBookingsCount;
 
-    if (utilization >= 90) {
+    if (seatsLeft === 0) {
       return {
-        text: "Almost Full",
+        text: "Full",
         color: "text-red-600",
-        bgColor: "bg-red-50",
+        bgColor: "bg-red-100",
+        borderColor: "border-red-200",
       };
-    } else if (utilization >= 70) {
+    } else if (seatsLeft <= 3) {
       return {
-        text: "Filling Up",
+        text: "Few Seats Left",
         color: "text-orange-600",
-        bgColor: "bg-orange-50",
+        bgColor: "bg-orange-100",
+        borderColor: "border-orange-200",
       };
     } else {
       return {
-        text: `${trip.seatCount - bookingsCount} Seats Left`,
+        text: `${seatsLeft} Seats Left`,
         color: "text-green-600",
-        bgColor: "bg-green-50",
+        bgColor: "bg-green-100",
+        borderColor: "border-green-200",
       };
     }
   };
 
-  const availability = getAvailabilityStatus();
+  const seatAvailability = getSeatAvailabilityBadge();
 
   // Calculate total revenue from confirmed bookings
   const totalRevenue = tripsStore
@@ -111,29 +126,45 @@ export function EnhancedTripCard({
   return (
     <div className="block group">
       <Link href={`/trips/${trip.id}`} className="block">
-        <div className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg hover:border-green-300 transition-all duration-200 group-hover:scale-[1.02]">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-lg hover:border-green-300 transition-all duration-200 group-hover:scale-[1.02]">
           {/* Header */}
-          <div className="flex items-start justify-between mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 gap-4">
             <div className="flex-1">
-              <div className="flex items-center gap-4 text-sm text-gray-600 mb-2">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-2">
+                <div className="flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  <span>{new Date(trip.date).toLocaleDateString()}</span>
+                </div>
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4" />
-                  <span>{vehicle?.name || "Unknown Vehicle"}</span>
+                  <span className="truncate max-w-[120px] sm:max-w-none">
+                    {vehicle?.name || "Unknown Vehicle"}
+                  </span>
                 </div>
-                {driver && (
+                {trip.isRecurring && (
                   <div className="flex items-center gap-1">
-                    <User className="h-4 w-4" />
-                    <span>{driver.name}</span>
+                    <Repeat className="h-4 w-4" />
+                    <span>Recurring</span>
                   </div>
                 )}
               </div>
+              {driver && (
+                <div className="flex items-center gap-1 text-sm text-gray-600">
+                  <User className="h-4 w-4" />
+                  <span>{driver.name}</span>
+                  <span className="text-xs text-gray-500">
+                    ⭐ {driver.rating}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="flex flex-col items-end gap-2">
               {getStatusBadge(trip.status)}
               <div
-                className={`px-2 py-1 rounded-full text-xs font-medium ${availability.color} ${availability.bgColor}`}
+                className={`px-3 py-1 rounded-full text-xs font-medium border ${seatAvailability.color} ${seatAvailability.bgColor} ${seatAvailability.borderColor}`}
               >
-                {availability.text}
+                Seats left: {trip.seatCount - trip.confirmedBookingsCount} /{" "}
+                {trip.seatCount}
               </div>
             </div>
           </div>
@@ -181,17 +212,36 @@ export function EnhancedTripCard({
           {/* Footer */}
           <div className="flex items-center justify-between pt-4 border-t border-gray-100">
             <div className="text-sm text-gray-600">
-              {trip.confirmedBookingsCount > 0 && (
-                <span>{trip.confirmedBookingsCount} confirmed</span>
-              )}
-              {trip.confirmedBookingsCount > 0 &&
-                bookingsCount > trip.confirmedBookingsCount && (
-                  <span className="ml-2 text-orange-600">
-                    {bookingsCount - trip.confirmedBookingsCount} pending
-                  </span>
+              <div className="flex items-center gap-4">
+                <span>₦{trip.price.toLocaleString()}</span>
+                <span>{trip.unitTime}</span>
+                {trip.confirmedBookingsCount > 0 && (
+                  <span>{trip.confirmedBookingsCount} confirmed</span>
                 )}
+                {trip.confirmedBookingsCount > 0 &&
+                  bookingsCount > trip.confirmedBookingsCount && (
+                    <span className="text-orange-600">
+                      {bookingsCount - trip.confirmedBookingsCount} pending
+                    </span>
+                  )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2">
+              {onEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onEdit(trip);
+                  }}
+                  className="text-gray-600 border-gray-200 hover:bg-gray-50 flex-1 sm:flex-none"
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Edit</span>
+                </Button>
+              )}
               {!driver ? (
                 <Button
                   variant="outline"
@@ -201,29 +251,27 @@ export function EnhancedTripCard({
                     e.stopPropagation();
                     setShowAssignDriverModal(true);
                   }}
-                  className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50 flex-1 sm:flex-none"
                 >
                   <UserPlus className="h-4 w-4 mr-1" />
-                  Assign Driver
+                  <span className="hidden sm:inline">Assign Driver</span>
+                  <span className="sm:hidden">Assign</span>
                 </Button>
               ) : (
-                <div className="flex items-center gap-2">
-                  <div className="text-sm text-gray-600">
-                    Driver: <span className="font-medium">{driver.name}</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setShowAssignDriverModal(true);
-                    }}
-                    className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                  >
-                    Change
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowAssignDriverModal(true);
+                  }}
+                  className="text-blue-600 border-blue-200 hover:bg-blue-50 flex-1 sm:flex-none"
+                >
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Change Driver</span>
+                  <span className="sm:hidden">Change</span>
+                </Button>
               )}
             </div>
           </div>

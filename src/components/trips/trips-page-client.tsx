@@ -2,10 +2,10 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { tripsStore, Vehicle } from "@/lib/trips-store";
-import { DateTimeSelector } from "./date-time-selector";
-import { EnhancedTripCard } from "./enhanced-trip-card";
 import { RouteTabs } from "./route-tabs";
+import { CreateEditTripModal } from "./create-edit-trip-modal";
 import { listRoutes } from "@/lib/routes-store";
+import { TripFormData, Trip } from "@/types";
 
 interface TripsPageClientProps {
   parkId: string;
@@ -16,6 +16,7 @@ interface TripsPageClientProps {
     phone: string;
     rating: number;
     parkId: string;
+    routeIds?: string[];
   }>;
 }
 
@@ -27,6 +28,8 @@ export function TripsPageClient({
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
   // Static departure time
   const departureTime = "06:00";
@@ -74,14 +77,54 @@ export function TripsPageClient({
     };
   }, [filteredTrips]);
 
+  // Handle trip creation/editing
+  const handleSaveTrip = async (
+    tripData: TripFormData
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch("/api/trips", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          parkId,
+          ...tripData,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        return { success: false, error: result.error };
+      }
+
+      // Refresh the page to show new trips
+      window.location.reload();
+
+      return { success: true };
+    } catch {
+      return { success: false, error: "Failed to save trip" };
+    }
+  };
+
+  const handleCreateTrip = () => {
+    setEditingTrip(null);
+    setShowCreateModal(true);
+  };
+
+  const handleEditTrip = (trip: Trip) => {
+    setEditingTrip(trip);
+    setShowCreateModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowCreateModal(false);
+    setEditingTrip(null);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Date Selector */}
-      <DateTimeSelector
-        selectedDate={selectedDate}
-        onDateChange={setSelectedDate}
-      />
-
       {/* Quick Stats - Simplified */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white p-6 rounded-xl border border-gray-200">
@@ -180,6 +223,27 @@ export function TripsPageClient({
                 )}
               </p>
             </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCreateTrip}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 shadow-sm"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+                Create Trip
+              </button>
+            </div>
           </div>
         </div>
 
@@ -209,33 +273,139 @@ export function TripsPageClient({
                   ? "Loading trips..."
                   : `There are no trips scheduled for ${selectedDate} at 6:00 AM.`}
               </p>
-              <button className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+              <button
+                onClick={handleCreateTrip}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+              >
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
                 Schedule New Trip
               </button>
             </div>
           ) : (
-            <div className="grid gap-6">
+            <div className="space-y-4">
               {filteredTrips.map((trip) => {
-                const vehicle = vehicles.find((v) => v.id === trip.vehicleId);
                 const driver = drivers.find((d) => d.id === trip.driverId);
-                const bookings = tripsStore.getBookings(trip.id);
-                const parcels = tripsStore.getParcels(trip.id);
+                const route = routes.find((r) => r.id === trip.routeId);
 
                 return (
-                  <EnhancedTripCard
+                  <div
                     key={trip.id}
-                    trip={trip}
-                    vehicle={vehicle}
-                    driver={driver}
-                    drivers={drivers}
-                    bookingsCount={bookings.length}
-                    parcelsCount={parcels.length}
-                  />
+                    className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:bg-gray-100 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-4">
+                          <div>
+                            <h3 className="font-medium text-gray-900">
+                              {route?.destination || "Unknown Route"}
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              {new Date(trip.date).toLocaleDateString()} at{" "}
+                              {trip.unitTime}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600">Seats</p>
+                            <p className="font-medium text-gray-900">
+                              {trip.seatCount}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600">Price</p>
+                            <p className="font-medium text-green-600">
+                              ₦{trip.price.toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm text-gray-600">Status</p>
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                trip.status === "published"
+                                  ? "bg-green-100 text-green-800"
+                                  : trip.status === "live"
+                                  ? "bg-blue-100 text-blue-800"
+                                  : "bg-gray-100 text-gray-800"
+                              }`}
+                            >
+                              {trip.status}
+                            </span>
+                          </div>
+                        </div>
+                        {driver && (
+                          <div className="mt-2 text-sm text-gray-600">
+                            <span className="font-medium">Driver:</span>{" "}
+                            {driver.name}
+                            {trip.driverPhone && (
+                              <span className="ml-4">
+                                <span className="font-medium">Phone:</span>{" "}
+                                {trip.driverPhone}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <button
+                          onClick={() => handleEditTrip(trip)}
+                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                        >
+                          Edit
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           )}
         </div>
+      </div>
+
+      {/* Create/Edit Trip Modal */}
+      <CreateEditTripModal
+        isOpen={showCreateModal}
+        onClose={handleCloseModal}
+        onSave={handleSaveTrip}
+        parkId={parkId}
+        vehicles={vehicles}
+        drivers={drivers}
+        trip={editingTrip || undefined}
+        mode={editingTrip ? "edit" : "create"}
+      />
+
+      {/* Mobile Floating Action Button */}
+      <div className="fixed bottom-20 right-4 lg:hidden z-50">
+        <button
+          onClick={handleCreateTrip}
+          className="inline-flex items-center justify-center w-14 h-14 bg-green-600 hover:bg-green-700 text-white rounded-full shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200"
+          aria-label="Create new trip"
+        >
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+        </button>
       </div>
     </div>
   );

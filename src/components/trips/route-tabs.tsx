@@ -56,35 +56,11 @@ export function RouteTabs({
                     : "bg-white text-gray-700 hover:bg-gray-50"
                 )}
               >
-                <div className="flex items-center gap-2">
-                  <span>{route.destination}</span>
-                  <span className="text-xs opacity-75">
-                    ₦{route.basePrice.toLocaleString()}
-                  </span>
-                </div>
+                {route.destination}
               </button>
             ))}
         </div>
       </div>
-
-      {/* Show inactive routes if any */}
-      {routes.some((route) => !route.isActive) && (
-        <div className="mt-4 pt-4 border-t border-gray-100">
-          <div className="text-xs text-gray-500 mb-2">Inactive Routes:</div>
-          <div className="flex flex-wrap gap-2">
-            {routes
-              .filter((route) => !route.isActive)
-              .map((route) => (
-                <span
-                  key={route.id}
-                  className="px-3 py-1 rounded-full text-xs bg-gray-100 text-gray-500"
-                >
-                  {route.destination}
-                </span>
-              ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

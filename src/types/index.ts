@@ -34,6 +34,7 @@ export interface Driver {
   licenseNumber: string;
   licenseExpiry?: string;
   qualifiedRoute: string; // Single route destination (e.g., "Ibadan")
+  routeIds?: string[]; // Array of route IDs the driver is assigned to
   isActive: boolean;
   rating?: number;
   vehiclePlateNumber?: string;
@@ -237,4 +238,114 @@ export interface SystemConfig {
   cancellationWindowHours: number;
   maxSlotsPerBooking: number;
   defaultDepartureTime: string;
+}
+
+// Enhanced Trip Types for New Requirements
+export interface Trip {
+  id: string;
+  parkId: string;
+  routeId: string;
+  date: string; // YYYY-MM-DD
+  unitTime: string; // HH:MM format
+  vehicleId: string;
+  seatCount: number;
+  confirmedBookingsCount: number;
+  maxParcelsPerVehicle: number;
+  driverId?: string;
+  driverPhone?: string;
+  price: number;
+  status: "draft" | "published" | "live" | "completed" | "cancelled";
+  payoutStatus: "NotScheduled" | "Scheduled" | "Paid";
+  isRecurring: boolean;
+  recurrencePattern?: RecurrencePattern;
+  parentTripId?: string; // For recurring trip instances
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RecurrencePattern {
+  type: "daily" | "weekdays" | "custom";
+  interval?: number; // For custom patterns
+  daysOfWeek?: number[]; // 0-6 (Sunday-Saturday)
+  endDate?: string; // Optional end date for recurring trips
+  exceptions?: string[]; // Array of dates to exclude (YYYY-MM-DD)
+}
+
+export interface Booking {
+  id: string;
+  tripId: string;
+  passengerName: string;
+  passengerPhone: string;
+  nokName: string;
+  nokPhone: string;
+  nokAddress: string;
+  seatNumber: number;
+  amountPaid: number;
+  paymentStatus: "pending" | "confirmed" | "refunded";
+  bookingStatus: "pending" | "confirmed" | "cancelled" | "refunded";
+  checkedIn?: boolean;
+  paymentHoldExpiresAt?: number; // timestamp for 5-minute hold
+  holdToken?: string; // Unique token for seat hold
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Vehicle {
+  id: string;
+  name: string;
+  seatCount: number;
+  maxParcelsPerVehicle: number;
+  parkId: string;
+}
+
+// Form Types
+export interface TripFormData {
+  routeId: string;
+  date: string;
+  unitTime: string;
+  vehicleId: string;
+  seatCount: number;
+  price: number;
+  driverId?: string;
+  driverPhone?: string;
+  maxParcelsPerVehicle: number;
+  isRecurring: boolean;
+  recurrencePattern?: RecurrencePattern;
+  status: "draft" | "published";
+}
+
+// API Response Types
+export interface TripCreateResponse {
+  success: boolean;
+  data?: {
+    trip?: Trip;
+    trips?: Trip[]; // For recurring trips
+  };
+  error?: string;
+  message?: string;
+}
+
+export interface BookingCreateResponse {
+  success: boolean;
+  data?: {
+    booking?: Booking;
+    holdToken?: string;
+  };
+  error?: string;
+  message?: string;
+  conflictType?: "SLOT_TAKEN" | "DRIVER_CONFLICT";
+  conflictingTripId?: string;
+}
+
+// Notification Types
+export interface NotificationTemplate {
+  type:
+    | "TripPublished"
+    | "BookingConfirmed"
+    | "BookingFailed"
+    | "DriverAssigned"
+    | "DriverDetailsAvailable";
+  title: string;
+  message: string;
+  template: string;
 }

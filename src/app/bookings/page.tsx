@@ -6,6 +6,9 @@ import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { MobileHeader } from "@/components/dashboard/mobile-header";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { LiveBookingsManager } from "@/components/bookings/live-bookings-manager";
+import { LiveTripsManager } from "@/components/bookings/live-trips-manager";
+import { ConsolidatedBookingStats } from "@/components/bookings/consolidated-booking-stats";
+import { tripsStore } from "@/lib/trips-store";
 
 export default async function LiveBookingsPage() {
   const session = await getServerSession(authOptions);
@@ -29,15 +32,28 @@ export default async function LiveBookingsPage() {
 
         {/* Content with mobile bottom padding */}
         <main className="p-4 lg:p-6 pb-20 lg:pb-6">
-          <div className="mb-6">
-            <h1 className="text-xl lg:text-2xl font-bold text-gray-900">
+          {/* Consolidated Stats */}
+          <ConsolidatedBookingStats parkId={session.user.parkId || ""} />
+
+          {/* Live Bookings Section */}
+          <div className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
               Live Bookings
-            </h1>
-            <p className="text-sm lg:text-base text-gray-600">
-              Real-time passenger bookings and trip management
-            </p>
+            </h2>
+            <LiveBookingsManager parkId={session.user.parkId || ""} />
           </div>
-          <LiveBookingsManager parkId={session.user.parkId} />
+
+          {/* Live Trips Section */}
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              Active Trip Operations
+            </h2>
+            <LiveTripsManager
+              parkId={session.user.parkId || ""}
+              vehicles={tripsStore.getVehicles(session.user.parkId || "")}
+              drivers={tripsStore.getDrivers(session.user.parkId || "")}
+            />
+          </div>
         </main>
       </div>
 
@@ -46,6 +62,3 @@ export default async function LiveBookingsPage() {
     </div>
   );
 }
-
-
-

@@ -3,50 +3,16 @@
 // Persists data across reloads using globalThis and localStorage
 
 import { listRoutes } from "./routes-store";
+import {
+  Trip,
+  Booking,
+  Vehicle,
+  RecurrencePattern,
+  TripFormData,
+} from "@/types";
 
-// Data Models
-export interface Vehicle {
-  id: string;
-  name: string;
-  seatCount: number;
-  maxParcelsPerVehicle: number;
-  parkId: string;
-}
-
-export interface Trip {
-  id: string;
-  parkId: string;
-  routeId: string;
-  date: string; // YYYY-MM-DD
-  unitTime: string; // HH:MM format
-  vehicleId: string;
-  seatCount: number;
-  confirmedBookingsCount: number;
-  maxParcelsPerVehicle: number;
-  driverId?: string;
-  status: "scheduled" | "active" | "completed" | "cancelled";
-  payoutStatus: "NotScheduled" | "Scheduled" | "Paid";
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Booking {
-  id: string;
-  tripId: string;
-  passengerName: string;
-  passengerPhone: string;
-  nokName: string;
-  nokPhone: string;
-  nokAddress: string;
-  seatNumber: number;
-  amountPaid: number;
-  paymentStatus: "pending" | "confirmed" | "refunded";
-  bookingStatus: "confirmed" | "pending" | "cancelled" | "refunded";
-  checkedIn?: boolean;
-  paymentHoldExpiresAt?: number; // timestamp for 5-minute hold
-  createdAt: string;
-  updatedAt: string;
-}
+// Re-export types for backward compatibility
+export type { Trip, Booking, Vehicle, RecurrencePattern, TripFormData };
 
 export interface Parcel {
   id: string;
@@ -144,6 +110,7 @@ const MOCK_DRIVERS = [
     phone: "+2348012345678",
     rating: 4.8,
     parkId: "lekki-phase-1-motor-park",
+    routeIds: ["r_lekk_1"], // Lagos route
   },
   {
     id: "driver_2",
@@ -151,6 +118,7 @@ const MOCK_DRIVERS = [
     phone: "+2348023456789",
     rating: 4.6,
     parkId: "lekki-phase-1-motor-park",
+    routeIds: ["r_lekk_1", "r_lekk_2"], // Lagos and Abuja routes
   },
   {
     id: "driver_3",
@@ -158,6 +126,7 @@ const MOCK_DRIVERS = [
     phone: "+2348034567890",
     rating: 4.9,
     parkId: "ikeja-motor-park",
+    routeIds: ["r_ikej_1"], // Ibadan route
   },
   {
     id: "driver_4",
@@ -165,6 +134,7 @@ const MOCK_DRIVERS = [
     phone: "+2348045678901",
     rating: 4.7,
     parkId: "ikeja-motor-park",
+    routeIds: ["r_ikej_1", "r_ikej_2"], // Ibadan and Ilesa routes
   },
   {
     id: "driver_5",
@@ -172,6 +142,7 @@ const MOCK_DRIVERS = [
     phone: "+2348056789012",
     rating: 4.5,
     parkId: "ajah-motor-park",
+    routeIds: ["r_ajah_1"], // Ibadan route from Ajah
   },
   {
     id: "driver_6",
@@ -179,6 +150,7 @@ const MOCK_DRIVERS = [
     phone: "+2348067890123",
     rating: 4.8,
     parkId: "lekki-phase-1-motor-park",
+    routeIds: ["r_lekk_2"], // Abuja route
   },
   {
     id: "driver_7",
@@ -186,6 +158,7 @@ const MOCK_DRIVERS = [
     phone: "+2348078901234",
     rating: 4.4,
     parkId: "ikeja-motor-park",
+    routeIds: ["r_ikej_2"], // Ilesa route
   },
   {
     id: "driver_8",
@@ -193,6 +166,7 @@ const MOCK_DRIVERS = [
     phone: "+2348089012345",
     rating: 4.9,
     parkId: "ajah-motor-park",
+    routeIds: ["r_ajah_1"], // Ibadan route from Ajah
   },
 ];
 
@@ -305,8 +279,10 @@ class TripsStore {
                   seatCount: vehicle.seatCount,
                   confirmedBookingsCount: 0,
                   maxParcelsPerVehicle: vehicle.maxParcelsPerVehicle,
-                  status: "scheduled",
+                  price: route.basePrice,
+                  status: "draft",
                   payoutStatus: "NotScheduled",
+                  isRecurring: false,
                   createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString(),
                 };
@@ -502,8 +478,17 @@ class TripsStore {
     return this.parcels.filter((p) => !p.assignedTripId);
   }
 
-  getDrivers(parkId: string) {
-    return MOCK_DRIVERS.filter((d) => d.parkId === parkId);
+  getDrivers(parkId: string, routeId?: string) {
+    let filteredDrivers = MOCK_DRIVERS.filter((d) => d.parkId === parkId);
+
+    // If routeId is provided, filter drivers assigned to that route
+    if (routeId) {
+      filteredDrivers = filteredDrivers.filter(
+        (d) => d.routeIds && d.routeIds.includes(routeId)
+      );
+    }
+
+    return filteredDrivers;
   }
 
   getAuditLogs(entityType?: string, entityId?: string): AuditLog[] {
@@ -711,6 +696,476 @@ class TripsStore {
     this.logAudit("checked_in", "Booking", bookingId, { tripId });
     this.persistToGlobal();
     return { success: true };
+  }
+
+  // New Enhanced Trip Management Methods
+  createTrip(
+    tripData: TripFormData,
+    parkId: string
+  ): { success: boolean; trips?: Trip[]; error?: string } {
+    try {
+      const vehicle = this.vehicles.find((v) => v.id === tripData.vehicleId);
+      if (!vehicle) {
+        return { success: false, error: "Vehicle not found" };
+      }
+
+      // Validate seat count
+      if (tripData.seatCount > vehicle.seatCount) {
+        return {
+          success: false,
+          error: `Seat count (${tripData.seatCount}) cannot exceed vehicle capacity (${vehicle.seatCount})`,
+        };
+      }
+
+      const createdTrips: Trip[] = [];
+
+      if (tripData.isRecurring && tripData.recurrencePattern) {
+        // Create recurring trips
+        const trips = this.generateRecurringTrips(tripData, parkId);
+        createdTrips.push(...trips);
+      } else {
+        // Create single trip
+        const trip = this.createSingleTrip(tripData, parkId);
+        createdTrips.push(trip);
+      }
+
+      // Log audit for trip creation
+      createdTrips.forEach((trip) => {
+        this.logAudit("trip_created", "Trip", trip.id, {
+          tripData: {
+            routeId: trip.routeId,
+            date: trip.date,
+            unitTime: trip.unitTime,
+            seatCount: trip.seatCount,
+            price: trip.price,
+            isRecurring: trip.isRecurring,
+          },
+        });
+      });
+
+      this.persistToGlobal();
+      return { success: true, trips: createdTrips };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
+  }
+
+  private createSingleTrip(tripData: TripFormData, parkId: string): Trip {
+    const trip: Trip = {
+      id: `trip_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      parkId,
+      routeId: tripData.routeId,
+      date: tripData.date,
+      unitTime: tripData.unitTime,
+      vehicleId: tripData.vehicleId,
+      seatCount: tripData.seatCount,
+      confirmedBookingsCount: 0,
+      maxParcelsPerVehicle: tripData.maxParcelsPerVehicle,
+      driverId: tripData.driverId,
+      driverPhone: tripData.driverPhone,
+      price: tripData.price,
+      status: tripData.status,
+      payoutStatus: "NotScheduled",
+      isRecurring: tripData.isRecurring,
+      recurrencePattern: tripData.recurrencePattern,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.trips.push(trip);
+    return trip;
+  }
+
+  private generateRecurringTrips(
+    tripData: TripFormData,
+    parkId: string
+  ): Trip[] {
+    const trips: Trip[] = [];
+    const startDate = new Date(tripData.date);
+    const endDate = tripData.recurrencePattern?.endDate
+      ? new Date(tripData.recurrencePattern.endDate)
+      : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000); // 90 days from now
+
+    const parentTripId = `parent_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2, 8)}`;
+    const currentDate = new Date(startDate);
+
+    while (currentDate <= endDate && trips.length < 365) {
+      // Safety limit
+      const dateStr = currentDate.toISOString().split("T")[0];
+
+      // Check if this date should be excluded
+      if (tripData.recurrencePattern?.exceptions?.includes(dateStr)) {
+        currentDate.setDate(currentDate.getDate() + 1);
+        continue;
+      }
+
+      // Check if this date matches the recurrence pattern
+      if (this.shouldIncludeDate(currentDate, tripData.recurrencePattern!)) {
+        const trip: Trip = {
+          id: `trip_${dateStr}_${tripData.routeId}_${Date.now()}`,
+          parkId,
+          routeId: tripData.routeId,
+          date: dateStr,
+          unitTime: tripData.unitTime,
+          vehicleId: tripData.vehicleId,
+          seatCount: tripData.seatCount,
+          confirmedBookingsCount: 0,
+          maxParcelsPerVehicle: tripData.maxParcelsPerVehicle,
+          driverId: tripData.driverId,
+          driverPhone: tripData.driverPhone,
+          price: tripData.price,
+          status: tripData.status,
+          payoutStatus: "NotScheduled",
+          isRecurring: true,
+          recurrencePattern: tripData.recurrencePattern,
+          parentTripId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        this.trips.push(trip);
+        trips.push(trip);
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return trips;
+  }
+
+  private shouldIncludeDate(date: Date, pattern: RecurrencePattern): boolean {
+    const dayOfWeek = date.getDay();
+
+    switch (pattern.type) {
+      case "daily":
+        return true;
+      case "weekdays":
+        return dayOfWeek >= 1 && dayOfWeek <= 5; // Monday to Friday
+      case "custom":
+        return pattern.daysOfWeek?.includes(dayOfWeek) || false;
+      default:
+        return false;
+    }
+  }
+
+  publishTrip(tripId: string): { success: boolean; error?: string } {
+    const trip = this.getTrip(tripId);
+    if (!trip) {
+      return { success: false, error: "Trip not found" };
+    }
+
+    if (trip.status === "published") {
+      return { success: false, error: "Trip is already published" };
+    }
+
+    trip.status = "published";
+    trip.updatedAt = new Date().toISOString();
+
+    this.logAudit("trip_published", "Trip", tripId, {});
+    this.persistToGlobal();
+
+    return { success: true };
+  }
+
+  updateTrip(
+    tripId: string,
+    updates: Partial<TripFormData>,
+    applyTo: "occurrence" | "future" | "series" = "occurrence"
+  ): { success: boolean; error?: string } {
+    const trip = this.getTrip(tripId);
+    if (!trip) {
+      return { success: false, error: "Trip not found" };
+    }
+
+    // Validate seat count if being updated
+    if (updates.seatCount !== undefined) {
+      const vehicle = this.vehicles.find((v) => v.id === trip.vehicleId);
+      if (!vehicle) {
+        return { success: false, error: "Vehicle not found" };
+      }
+
+      if (updates.seatCount > vehicle.seatCount) {
+        return {
+          success: false,
+          error: `Seat count (${updates.seatCount}) cannot exceed vehicle capacity (${vehicle.seatCount})`,
+        };
+      }
+
+      // Check if reducing seats below confirmed bookings
+      if (updates.seatCount < trip.confirmedBookingsCount) {
+        return {
+          success: false,
+          error: `Cannot reduce seats to ${updates.seatCount} as there are ${trip.confirmedBookingsCount} confirmed bookings`,
+        };
+      }
+    }
+
+    // Validate price changes
+    if (updates.price !== undefined && updates.price !== trip.price) {
+      if (trip.confirmedBookingsCount > 0) {
+        return {
+          success: false,
+          error: `Cannot change price as there are ${trip.confirmedBookingsCount} confirmed bookings. New price will apply to future bookings only.`,
+        };
+      }
+    }
+
+    // Apply updates
+    Object.assign(trip, updates);
+    trip.updatedAt = new Date().toISOString();
+
+    // If this is part of a recurring series, apply to related trips based on applyTo
+    if (trip.isRecurring && trip.parentTripId) {
+      this.updateRecurringSeries(
+        trip.parentTripId,
+        updates,
+        applyTo,
+        trip.date
+      );
+    }
+
+    this.logAudit("trip_updated", "Trip", tripId, { updates, applyTo });
+    this.persistToGlobal();
+
+    return { success: true };
+  }
+
+  private updateRecurringSeries(
+    parentTripId: string,
+    updates: Partial<TripFormData>,
+    applyTo: "occurrence" | "future" | "series",
+    currentTripDate: string
+  ): void {
+    const relatedTrips = this.trips.filter(
+      (t) => t.parentTripId === parentTripId
+    );
+
+    relatedTrips.forEach((trip) => {
+      let shouldUpdate = false;
+
+      switch (applyTo) {
+        case "series":
+          shouldUpdate = true;
+          break;
+        case "future":
+          shouldUpdate = trip.date > currentTripDate;
+          break;
+        case "occurrence":
+        default:
+          shouldUpdate = trip.date === currentTripDate;
+          break;
+      }
+
+      if (shouldUpdate) {
+        Object.assign(trip, updates);
+        trip.updatedAt = new Date().toISOString();
+        this.logAudit("trip_updated", "Trip", trip.id, { updates, applyTo });
+      }
+    });
+  }
+
+  // Enhanced booking with atomic seat allocation
+  createBookingWithHold(
+    tripId: string,
+    bookingData: Omit<
+      Booking,
+      "id" | "tripId" | "createdAt" | "updatedAt" | "seatNumber"
+    >,
+    holdDurationMinutes = 5
+  ): {
+    success: boolean;
+    booking?: Booking;
+    holdToken?: string;
+    error?: string;
+    conflictType?: string;
+  } {
+    const trip = this.getTrip(tripId);
+    if (!trip) {
+      return { success: false, error: "Trip not found" };
+    }
+
+    // Check if trip is published/live
+    if (trip.status !== "published" && trip.status !== "live") {
+      return { success: false, error: "Trip is not available for booking" };
+    }
+
+    // Check if seats are available
+    if (trip.confirmedBookingsCount >= trip.seatCount) {
+      return {
+        success: false,
+        error: "No seats available",
+        conflictType: "SLOT_TAKEN",
+      };
+    }
+
+    // Generate hold token
+    const holdToken = `hold_${Date.now()}_${Math.random()
+      .toString(36)
+      .substring(2, 8)}`;
+    const holdExpiresAt = Date.now() + holdDurationMinutes * 60 * 1000;
+
+    // Create pending booking with hold
+    const booking: Booking = {
+      id: `booking_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+      tripId,
+      ...bookingData,
+      seatNumber: trip.confirmedBookingsCount + 1,
+      paymentStatus: "pending",
+      bookingStatus: "pending",
+      paymentHoldExpiresAt: holdExpiresAt,
+      holdToken,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    this.bookings.push(booking);
+    trip.confirmedBookingsCount++; // Reserve the seat
+    trip.updatedAt = new Date().toISOString();
+
+    // Set timer to release seat if payment not confirmed
+    const timer = setTimeout(() => {
+      this.releaseSeatHold(booking.id);
+    }, holdDurationMinutes * 60 * 1000);
+
+    this.seatHoldTimers.set(booking.id, timer);
+
+    this.logAudit("booking_created_with_hold", "Booking", booking.id, {
+      tripId,
+      holdToken,
+      holdExpiresAt,
+    });
+    this.persistToGlobal();
+
+    return { success: true, booking, holdToken };
+  }
+
+  confirmBookingPayment(bookingId: string): {
+    success: boolean;
+    error?: string;
+  } {
+    const booking = this.bookings.find((b) => b.id === bookingId);
+    if (!booking) {
+      return { success: false, error: "Booking not found" };
+    }
+
+    // Check if hold is still valid
+    if (
+      booking.paymentHoldExpiresAt &&
+      Date.now() > booking.paymentHoldExpiresAt
+    ) {
+      return { success: false, error: "Payment hold has expired" };
+    }
+
+    // Confirm the booking
+    booking.paymentStatus = "confirmed";
+    booking.bookingStatus = "confirmed";
+    booking.updatedAt = new Date().toISOString();
+
+    // Clear the hold timer
+    const timer = this.seatHoldTimers.get(bookingId);
+    if (timer) {
+      clearTimeout(timer);
+      this.seatHoldTimers.delete(bookingId);
+    }
+
+    this.logAudit("booking_confirmed", "Booking", bookingId, {});
+    this.persistToGlobal();
+
+    return { success: true };
+  }
+
+  private releaseSeatHold(bookingId: string): void {
+    const booking = this.bookings.find((b) => b.id === bookingId);
+    if (!booking) return;
+
+    // Remove the booking
+    const bookingIndex = this.bookings.findIndex((b) => b.id === bookingId);
+    if (bookingIndex > -1) {
+      this.bookings.splice(bookingIndex, 1);
+    }
+
+    // Release the seat
+    const trip = this.getTrip(booking.tripId);
+    if (trip) {
+      trip.confirmedBookingsCount--;
+      trip.updatedAt = new Date().toISOString();
+    }
+
+    // Clear timer
+    const timer = this.seatHoldTimers.get(bookingId);
+    if (timer) {
+      clearTimeout(timer);
+      this.seatHoldTimers.delete(bookingId);
+    }
+
+    this.logAudit("seat_hold_released", "Booking", bookingId, {});
+    this.persistToGlobal();
+  }
+
+  // Driver assignment with conflict detection
+  assignDriverWithConflictCheck(
+    tripId: string,
+    driverId: string
+  ): { success: boolean; conflictTripId?: string; error?: string } {
+    const trip = this.getTrip(tripId);
+    if (!trip) {
+      return { success: false, error: "Trip not found" };
+    }
+
+    // Check for driver conflicts (same day, different trip)
+    const conflictingTrips = this.trips.filter(
+      (t) =>
+        t.driverId === driverId &&
+        t.date === trip.date &&
+        t.id !== tripId &&
+        (t.status === "published" || t.status === "live")
+    );
+
+    if (conflictingTrips.length > 0) {
+      return {
+        success: false,
+        conflictTripId: conflictingTrips[0].id,
+        error: "Driver has conflicting assignment",
+      };
+    }
+
+    trip.driverId = driverId;
+    trip.updatedAt = new Date().toISOString();
+
+    this.logAudit("driver_assigned", "Trip", tripId, { driverId });
+    this.persistToGlobal();
+
+    return { success: true };
+  }
+
+  // Get trips with park metadata for public API
+  getTripsWithParkMetadata(
+    parkId: string,
+    date?: string
+  ): Array<
+    Trip & {
+      park?: { name: string; address: string; lat?: number; lon?: number };
+    }
+  > {
+    const trips = this.getTrips(parkId, date);
+
+    // Mock park metadata - in real app this would come from parks store
+    const parkMetadata = {
+      name: "Lekki Phase 1 Motor Park",
+      address: "Lekki Phase 1, Lagos, Nigeria",
+      lat: 6.4698,
+      lon: 3.5852,
+    };
+
+    return trips.map((trip) => ({
+      ...trip,
+      park: parkMetadata,
+    }));
   }
 }
 

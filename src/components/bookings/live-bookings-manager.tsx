@@ -4,9 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { LiveBooking } from "@/lib/live-bookings";
 import { BookingCard } from "./booking-card";
 import { BookingFilters } from "./booking-filters";
-import { BookingStats } from "./booking-stats";
 import { BookingDetailsModal } from "./booking-details-modal";
-import { SimulationPanel } from "./simulation-panel";
 import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
@@ -16,19 +14,17 @@ interface LiveBookingsManagerProps {
   parkId?: string;
 }
 
-interface BookingStats {
-  total: number;
-  reserved: number;
-  confirmed: number;
-  expired: number;
-  cancelled: number;
-  completed: number;
-  todayRevenue: number;
-}
-
 interface BookingsData {
   bookings: LiveBooking[];
-  stats: BookingStats;
+  stats: {
+    total: number;
+    reserved: number;
+    confirmed: number;
+    expired: number;
+    cancelled: number;
+    completed: number;
+    todayRevenue: number;
+  };
   lastModified: number;
   total: number;
 }
@@ -185,9 +181,6 @@ export function LiveBookingsManager({ parkId }: LiveBookingsManagerProps) {
         </div>
       )}
 
-      {/* Stats Cards */}
-      {data?.stats && <BookingStats stats={data.stats} />}
-
       {/* Header with Controls */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
@@ -216,9 +209,6 @@ export function LiveBookingsManager({ parkId }: LiveBookingsManagerProps) {
           </button>
         </div>
       </div>
-
-      {/* Simulation Panel (Development) */}
-      <SimulationPanel parkId={parkId} onBookingSimulated={handleRefresh} />
 
       {/* Filters */}
       <BookingFilters
