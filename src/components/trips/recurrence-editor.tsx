@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react"; // useMemo not used
 import { Calendar, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,7 @@ export function RecurrenceEditor({
       ? new Date(recurrencePattern.endDate)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days for preview
 
-    let currentDate = new Date(start);
+    const currentDate = new Date(start);
     currentDate.setDate(currentDate.getDate() + 1); // Start from next day for preview
 
     while (currentDate <= endDate && previewDates.length < 7) {
@@ -123,9 +123,8 @@ export function RecurrenceEditor({
 
       {/* Recurrence Type */}
       <div>
-        <Label htmlFor="recurrenceType">Repeat</Label>
+        <Label>Repeat</Label>
         <Select
-          id="recurrenceType"
           value={recurrencePattern.type}
           onValueChange={(value) =>
             updatePattern({ type: value as "daily" | "weekdays" | "custom" })

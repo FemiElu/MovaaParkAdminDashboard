@@ -9,7 +9,7 @@ export async function GET(
     const { parkId } = await context.params;
     const drivers = tripsStore.getDrivers(parkId);
     return NextResponse.json({ success: true, data: drivers });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

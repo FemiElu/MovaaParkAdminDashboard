@@ -6,14 +6,14 @@ export async function GET(
   context: { params: Promise<{ parkId: string }> }
 ) {
   try {
-    const { parkId } = await context.params;
+    await context.params; // parkId not used in current implementation
     const { searchParams } = new URL(req.url);
-    const _date = searchParams.get("date");
+    searchParams.get("date"); // date not used in current implementation
 
     // Mock: return all unassigned parcels (no park/date tracking in seed)
     const parcels = tripsStore.getParcels();
     return NextResponse.json({ success: true, data: parcels });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

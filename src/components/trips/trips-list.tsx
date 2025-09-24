@@ -107,7 +107,7 @@ export function TripsList({
               Trip Management
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              Manage and monitor your park's trip schedules
+              Manage and monitor your park&apos;s trip schedules
             </p>
           </div>
           <Button
@@ -215,7 +215,7 @@ export function TripsList({
             <span className="text-sm text-gray-600">Active filters:</span>
             {searchTerm && (
               <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                Search: "{searchTerm}"
+                Search: &quot;{searchTerm}&quot;
                 <button
                   onClick={() => setSearchTerm("")}
                   className="ml-2 text-blue-600 hover:text-blue-800"

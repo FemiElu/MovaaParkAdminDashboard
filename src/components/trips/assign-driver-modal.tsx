@@ -40,7 +40,7 @@ interface AssignDriverModalProps {
 export function AssignDriverModal({
   isOpen,
   onClose,
-  trip,
+  // trip, // Unused parameter
   drivers,
   onAssign,
 }: AssignDriverModalProps) {

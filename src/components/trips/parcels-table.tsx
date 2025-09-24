@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge"; // Unused import
 import { ExportButtons } from "./export-buttons";
 import { PhoneIcon, PrinterIcon } from "@heroicons/react/24/outline";
 

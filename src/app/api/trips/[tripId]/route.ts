@@ -4,10 +4,10 @@ import { TripFormData } from "@/types";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { tripId: string } }
+  { params }: { params: Promise<{ tripId: string }> }
 ) {
   try {
-    const { tripId } = params;
+    const { tripId } = await params;
 
     if (!tripId) {
       return NextResponse.json(
@@ -40,10 +40,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { tripId: string } }
+  { params }: { params: Promise<{ tripId: string }> }
 ) {
   try {
-    const { tripId } = params;
+    const { tripId } = await params;
     const body = await request.json();
     const {
       applyTo = "occurrence",
@@ -112,10 +112,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { tripId: string } }
+  { params }: { params: Promise<{ tripId: string }> }
 ) {
   try {
-    const { tripId } = params;
+    const { tripId } = await params;
 
     if (!tripId) {
       return NextResponse.json(
@@ -150,7 +150,7 @@ export async function DELETE(
 
     // Remove trip from store
     const tripIndex = tripsStore["trips"].findIndex(
-      (t: any) => t.id === tripId
+      (t: { id: string }) => t.id === tripId
     );
     if (tripIndex > -1) {
       tripsStore["trips"].splice(tripIndex, 1);

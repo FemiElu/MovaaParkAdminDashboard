@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge"; // Unused import
 import { ExportButtons } from "./export-buttons";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
@@ -114,44 +114,44 @@ export function TripFinanceSummary({
     setAdjustmentReason("");
   };
 
-  const exportCSV = () => {
-    // Mock CSV export
-    const csvData = [
-      ["Item", "Amount", "Driver Share", "Park Share"],
-      [
-        "Passenger Revenue",
-        formatCurrency(passengerRevenue),
-        formatCurrency(driverPassengerSplit),
-        formatCurrency(parkPassengerSplit),
-      ],
-      [
-        "Parcel Revenue",
-        formatCurrency(parcelRevenue),
-        formatCurrency(driverParcelSplit),
-        formatCurrency(parkParcelSplit),
-      ],
-      [
-        "Adjustments",
-        formatCurrency(adjustmentTotal),
-        formatCurrency(adjustmentTotal),
-        formatCurrency(-adjustmentTotal),
-      ],
-      [
-        "TOTAL",
-        formatCurrency(totalRevenue),
-        formatCurrency(driverTotal),
-        formatCurrency(parkTotal),
-      ],
-    ];
+  // const exportCSV = () => { // Unused function
+  //   // Mock CSV export
+  //   const csvData = [
+  //     ["Item", "Amount", "Driver Share", "Park Share"],
+  //     [
+  //       "Passenger Revenue",
+  //       formatCurrency(passengerRevenue),
+  //       formatCurrency(driverPassengerSplit),
+  //       formatCurrency(parkPassengerSplit),
+  //     ],
+  //     [
+  //       "Parcel Revenue",
+  //       formatCurrency(parcelRevenue),
+  //       formatCurrency(driverParcelSplit),
+  //       formatCurrency(parkParcelSplit),
+  //     ],
+  //     [
+  //       "Adjustments",
+  //       formatCurrency(adjustmentTotal),
+  //       formatCurrency(adjustmentTotal),
+  //       formatCurrency(-adjustmentTotal),
+  //     ],
+  //     [
+  //       "TOTAL",
+  //       formatCurrency(totalRevenue),
+  //       formatCurrency(driverTotal),
+  //       formatCurrency(parkTotal),
+  //     ],
+  //   ];
 
-    const csvContent = csvData.map((row) => row.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `trip-finance-${trip.id}.csv`;
-    a.click();
-  };
+  //   const csvContent = csvData.map((row) => row.join(",")).join("\n");
+  //   const blob = new Blob([csvContent], { type: "text/csv" });
+  //   const url = window.URL.createObjectURL(blob);
+  //   const a = document.createElement("a");
+  //   a.href = url;
+  //   a.download = `trip-finance-${trip.id}.csv`;
+  //   a.click();
+  // };
 
   return (
     <div className="space-y-6">

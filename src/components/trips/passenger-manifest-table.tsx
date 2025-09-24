@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge"; // Unused import
 import { ExportButtons } from "./export-buttons";
 import {
   PhoneIcon,
@@ -57,12 +57,12 @@ export function PassengerManifestTable({
   }, [bookings, searchTerm, statusFilter]);
 
   const getStatusBadge = (status: Booking["bookingStatus"]) => {
-    const variants = {
-      confirmed: "default",
-      pending: "secondary",
-      cancelled: "destructive",
-      refunded: "outline",
-    } as const;
+    // const variants = { // Unused variable
+    //   confirmed: "default",
+    //   pending: "secondary",
+    //   cancelled: "destructive",
+    //   refunded: "outline",
+    // } as const;
 
     const colors = {
       confirmed: "bg-green-100 text-green-800",

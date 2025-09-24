@@ -6,7 +6,7 @@ import { DateTimeSelector } from "../trips/date-time-selector";
 import { EnhancedTripCard } from "../trips/enhanced-trip-card";
 import { RouteTabs } from "../trips/route-tabs";
 import { listRoutes } from "@/lib/routes-store";
-import { Trip } from "@/types";
+// import { Trip } from "@/types"; // Unused import
 
 interface LiveTripsManagerProps {
   parkId: string;
@@ -64,29 +64,29 @@ export function LiveTripsManager({
   }, [parkId, selectedDate, departureTime, selectedRouteId, isClient]);
 
   // Calculate stats for the selected date/time/route
-  const stats = useMemo(() => {
-    const totalBookings = filteredTrips.reduce((sum, trip) => {
-      const bookings = tripsStore.getBookings(trip.id);
-      return sum + bookings.length;
-    }, 0);
+  // const stats = useMemo(() => {
+  //   const totalBookings = filteredTrips.reduce((sum, trip) => {
+  //     const bookings = tripsStore.getBookings(trip.id);
+  //     return sum + bookings.length;
+  //   }, 0);
 
-    const totalRevenue = filteredTrips.reduce((sum, trip) => {
-      const bookings = tripsStore.getBookings(trip.id);
-      return (
-        sum +
-        bookings.reduce(
-          (bookingSum, booking) => bookingSum + booking.amountPaid,
-          0
-        )
-      );
-    }, 0);
+  //   const totalRevenue = filteredTrips.reduce((sum, trip) => {
+  //     const bookings = tripsStore.getBookings(trip.id);
+  //     return (
+  //       sum +
+  //       bookings.reduce(
+  //         (bookingSum, booking) => bookingSum + booking.amountPaid,
+  //         0
+  //       )
+  //     );
+  //   }, 0);
 
-    return {
-      totalTrips: filteredTrips.length,
-      totalBookings,
-      totalRevenue,
-    };
-  }, [filteredTrips]);
+  //   return {
+  //     totalTrips: filteredTrips.length,
+  //     totalBookings,
+  //     totalRevenue,
+  //   };
+  // }, [filteredTrips]);
 
   return (
     <div className="space-y-6">

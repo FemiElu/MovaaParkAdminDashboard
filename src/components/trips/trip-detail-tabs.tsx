@@ -24,7 +24,7 @@ interface TripDetailTabsProps {
 export function TripDetailTabs({
   trip,
   vehicle,
-  driver,
+  // driver, // Unused parameter
   bookings,
   parcels,
 }: TripDetailTabsProps) {

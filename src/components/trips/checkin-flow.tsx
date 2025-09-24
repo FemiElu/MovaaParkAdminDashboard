@@ -24,7 +24,7 @@ export function CheckinFlow({ tripId, onCheckinComplete }: CheckinFlowProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Booking[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  // const [selectedBooking] = useState<Booking | null>(null); // Unused variable
   const [checkinMode, setCheckinMode] = useState<"search" | "qr">("search");
 
   const trip = tripsStore.getTrip(tripId);
@@ -60,7 +60,7 @@ export function CheckinFlow({ tripId, onCheckinComplete }: CheckinFlowProps) {
       const result = tripsStore.checkInBooking(tripId, booking.id);
 
       if (result.success) {
-        setSelectedBooking(booking);
+        // setSelectedBooking(booking); // Removed unused state
         // Refresh search results to show updated status
         searchBookings();
         onCheckinComplete?.();
@@ -105,7 +105,7 @@ export function CheckinFlow({ tripId, onCheckinComplete }: CheckinFlowProps) {
       <div className="bg-white rounded-xl border border-gray-200 p-6">
         <div className="flex space-x-2 mb-4">
           <Button
-            variant={checkinMode === "search" ? "default" : "outline"}
+            variant={checkinMode === "search" ? "primary" : "outline"}
             onClick={() => setCheckinMode("search")}
             className={
               checkinMode === "search" ? "bg-green-600 hover:bg-green-700" : ""
@@ -115,7 +115,7 @@ export function CheckinFlow({ tripId, onCheckinComplete }: CheckinFlowProps) {
             Search & Check-in
           </Button>
           <Button
-            variant={checkinMode === "qr" ? "default" : "outline"}
+            variant={checkinMode === "qr" ? "primary" : "outline"}
             onClick={() => setCheckinMode("qr")}
             className={
               checkinMode === "qr" ? "bg-green-600 hover:bg-green-700" : ""
@@ -261,7 +261,7 @@ export function CheckinFlow({ tripId, onCheckinComplete }: CheckinFlowProps) {
               QR Code Scanner
             </h3>
             <p className="text-gray-600 mb-4">
-              Point your camera at a passenger's QR code to check them in
+              Point your camera at a passenger&apos;s QR code to check them in
             </p>
             <Button
               className="bg-green-600 hover:bg-green-700 text-white"

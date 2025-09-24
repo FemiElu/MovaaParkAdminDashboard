@@ -3,10 +3,10 @@ import { tripsStore } from "@/lib/trips-store";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { parkId: string } }
+  { params }: { params: Promise<{ parkId: string }> }
 ) {
   try {
-    const { parkId } = params;
+    const { parkId } = await params;
     const { searchParams } = new URL(request.url);
     const date = searchParams.get("date");
 

@@ -94,11 +94,15 @@ export function ConsolidatedBookingStats({
             </div>
           </div>
           <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">Today's Revenue</p>
+            <p className="text-sm font-medium text-gray-600">
+              Today&apos;s Revenue
+            </p>
             <p className="text-2xl font-semibold text-gray-900">
               ₦{stats.todayRevenue.toLocaleString()}
             </p>
-            <p className="text-xs text-gray-500 mt-1">From today's trips</p>
+            <p className="text-xs text-gray-500 mt-1">
+              From today&apos;s trips
+            </p>
           </div>
         </div>
       </div>
