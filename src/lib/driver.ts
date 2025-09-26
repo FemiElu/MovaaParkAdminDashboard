@@ -54,10 +54,8 @@ export const DriverFormSchema = z.object({
   licenseExpiry: z.string().min(1, "License expiry is required"),
   qualifiedRoute: z.string().min(1), // Single route destination
   isActive: z.boolean(),
-  rating: z.number().min(1).max(5).optional(),
   vehiclePlateNumber: VehiclePlateSchema.optional(),
   address: z.string().optional(),
-  photo: z.string().optional(),
   documents: z.array(DriverDocumentSchema).optional(), // metadata only
 });
 
@@ -72,10 +70,8 @@ export const DriverInputSchema = z.object({
   ]),
   qualifiedRoute: z.string().min(1), // Single route destination
   isActive: z.boolean().default(true),
-  rating: z.number().min(1).max(5).optional(),
   vehiclePlateNumber: VehiclePlateSchema.optional(),
   address: z.string().optional(),
-  photo: z.string().optional(),
   documents: z.array(DriverDocumentSchema).optional(), // metadata only
 });
 

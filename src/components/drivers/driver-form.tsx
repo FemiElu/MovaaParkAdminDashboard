@@ -141,7 +141,7 @@ export default function DriverForm({
             License Expiry Date *
           </label>
           <input
-            {...register("licenseExpiry", { valueAsDate: true })}
+            {...register("licenseExpiry")}
             type="date"
             id="licenseExpiry"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
@@ -183,31 +183,6 @@ export default function DriverForm({
             <p className="mt-1 text-sm text-red-600">
               {errors.qualifiedRoute.message}
             </p>
-          )}
-        </div>
-
-        {/* Rating */}
-        <div>
-          <label
-            htmlFor="rating"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Rating (1-5)
-          </label>
-          <select
-            {...register("rating", { valueAsNumber: true })}
-            id="rating"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
-          >
-            <option value="">Select rating</option>
-            <option value={1}>1 Star</option>
-            <option value={2}>2 Stars</option>
-            <option value={3}>3 Stars</option>
-            <option value={4}>4 Stars</option>
-            <option value={5}>5 Stars</option>
-          </select>
-          {errors.rating && (
-            <p className="mt-1 text-sm text-red-600">{errors.rating.message}</p>
           )}
         </div>
 
@@ -254,26 +229,6 @@ export default function DriverForm({
             </p>
           )}
         </div>
-      </div>
-
-      {/* Photo URL */}
-      <div>
-        <label
-          htmlFor="photo"
-          className="block text-sm font-medium text-gray-700 mb-1"
-        >
-          Photo URL
-        </label>
-        <input
-          {...register("photo")}
-          type="url"
-          id="photo"
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
-          placeholder="https://example.com/photo.jpg"
-        />
-        {errors.photo && (
-          <p className="mt-1 text-sm text-red-600">{errors.photo.message}</p>
-        )}
       </div>
 
       {/* Active Status */}

@@ -107,7 +107,7 @@ export function TripsList({
               Trip Management
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              Manage and monitor your park&apos;s trip schedules
+              Manage your park&apos;s trip schedules
             </p>
           </div>
           <Button

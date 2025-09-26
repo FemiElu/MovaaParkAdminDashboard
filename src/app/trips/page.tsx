@@ -33,7 +33,7 @@ export default async function TripsPage() {
               Trip Management
             </h1>
             <p className="text-gray-600">
-              Manage and monitor your park&apos;s trip schedules
+              Manage your park&apos;s trip schedules
             </p>
           </div>
 

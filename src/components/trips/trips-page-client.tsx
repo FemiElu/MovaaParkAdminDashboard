@@ -10,7 +10,7 @@ import { TripFormData, Trip } from "@/types";
 interface TripsPageClientProps {
   parkId: string;
   vehicles: Vehicle[];
-  drivers: Array<{
+  drivers?: Array<{
     id: string;
     name: string;
     phone: string;
@@ -23,13 +23,15 @@ interface TripsPageClientProps {
 export function TripsPageClient({
   parkId,
   vehicles,
-  drivers,
+  drivers: initialDrivers = [],
 }: TripsPageClientProps) {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [apiTrips, setApiTrips] = useState<Trip[]>([]);
+  const [drivers, setDrivers] = useState(initialDrivers || []);
 
   // Static departure time
   const departureTime = "06:00";
@@ -43,8 +45,53 @@ export function TripsPageClient({
     }
   }, [selectedDate]);
 
+  // Fetch drivers from API to get the latest data
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      try {
+        const response = await fetch(`/api/drivers?parkId=${parkId}`);
+        if (response.ok) {
+          const result = await response.json();
+          setDrivers(Array.isArray(result.data) ? result.data : []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch drivers:", error);
+      }
+    };
+
+    if (isClient) {
+      fetchDrivers();
+    }
+  }, [parkId, isClient]);
+
   // Get routes for the current park
-  const routes = useMemo(() => listRoutes(parkId), [parkId]);
+  const routes = useMemo(() => listRoutes(parkId) || [], [parkId]);
+
+  // Fetch trips from API so server-created data is reflected client-side
+  useEffect(() => {
+    if (!isClient || !selectedDate) return;
+    const controller = new AbortController();
+    const fetchTrips = async () => {
+      try {
+        const params = new URLSearchParams({ parkId, date: selectedDate });
+        const res = await fetch(`/api/trips?${params.toString()}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.data)) {
+          setApiTrips(json.data as Trip[]);
+        } else {
+          setApiTrips([]);
+        }
+      } catch {
+        // ignore for now
+        setApiTrips([]);
+      }
+    };
+    fetchTrips();
+    return () => controller.abort();
+  }, [isClient, selectedDate, parkId]);
 
   // Get trips filtered by date and route (time is static 06:00)
   const filteredTrips = useMemo(() => {
@@ -53,7 +100,7 @@ export function TripsPageClient({
       return [];
     }
 
-    const allTrips = tripsStore.getTrips(parkId, selectedDate);
+    const allTrips = apiTrips; // authoritative source from server
     let filtered = allTrips.filter((trip) => trip.unitTime === departureTime);
 
     // Filter by route if selected
@@ -62,7 +109,7 @@ export function TripsPageClient({
     }
 
     return filtered;
-  }, [parkId, selectedDate, departureTime, selectedRouteId, isClient]);
+  }, [apiTrips, selectedDate, departureTime, selectedRouteId, isClient]);
 
   // Calculate simplified stats for the selected date/time/route
   const stats = useMemo(() => {
@@ -93,14 +140,39 @@ export function TripsPageClient({
         }),
       });
 
-      const result = await response.json();
-
-      if (!result.success) {
-        return { success: false, error: result.error };
+      // If server returns an empty body (some environments), still treat 2xx as success
+      if (!response.ok) {
+        let errorMessage = "Failed to save trip";
+        try {
+          const maybeJson = await response.json();
+          errorMessage = maybeJson?.error || errorMessage;
+        } catch {
+          try {
+            errorMessage = (await response.text()) || errorMessage;
+          } catch {}
+        }
+        return { success: false, error: errorMessage };
       }
 
-      // Refresh the page to show new trips
-      window.location.reload();
+      // Try to parse JSON if available, and merge created trips into view
+      try {
+        const result = await response.json();
+        if (result && result.success === false) {
+          return { success: false, error: result.error };
+        }
+        const created = result?.data?.trips as Trip[] | undefined;
+        if (Array.isArray(created) && created.length > 0) {
+          // Merge only those matching the currently selected date
+          setApiTrips((prev) => {
+            const sameDate = created.filter((t) => t.date === selectedDate);
+            return sameDate.length ? [...prev, ...sameDate] : prev;
+          });
+        }
+      } catch {
+        // No JSON body – proceed
+      }
+
+      // No hard reload; data is merged above and useEffect will refetch
 
       return { success: true };
     } catch {
@@ -125,21 +197,21 @@ export function TripsPageClient({
 
   return (
     <div className="space-y-6">
-      {/* Quick Stats - Simplified */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+      {/* Quick Stats - Mobile Responsive */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-600 truncate">
                 Scheduled Trips
               </p>
-              <p className="text-3xl font-bold text-green-600 mt-2">
+              <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-1">
                 {stats.totalTrips}
               </p>
             </div>
-            <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0 ml-3">
               <svg
-                className="h-6 w-6 text-green-600"
+                className="h-5 w-5 sm:h-6 sm:w-6 text-green-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -155,19 +227,19 @@ export function TripsPageClient({
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-xl border border-gray-200">
+        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-gray-600 truncate">
                 Total Passengers
               </p>
-              <p className="text-3xl font-bold text-blue-600 mt-2">
+              <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1">
                 {stats.totalBookings}
               </p>
             </div>
-            <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 ml-3">
               <svg
-                className="h-6 w-6 text-blue-600"
+                className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -192,30 +264,31 @@ export function TripsPageClient({
       />
 
       {/* Trips List */}
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="p-4 sm:p-6 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-xl font-semibold text-gray-900">
                 Trip Schedule
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600 mt-1 break-words">
                 {!selectedDate ? (
                   "Loading trips..."
                 ) : (
                   <>
                     {filteredTrips.length} trip
                     {filteredTrips.length !== 1 ? "s" : ""} scheduled for{" "}
-                    {selectedDate} at {departureTime}
+                    <span className="font-medium">{selectedDate}</span> at{" "}
+                    <span className="font-medium">{departureTime}</span>
                     {selectedRouteId && (
                       <span>
                         {" "}
                         to{" "}
                         <span className="font-medium text-green-600">
-                          {
-                            routes.find((r) => r.id === selectedRouteId)
-                              ?.destination
-                          }
+                          {Array.isArray(routes)
+                            ? routes.find((r) => r.id === selectedRouteId)
+                                ?.destination
+                            : undefined}
                         </span>
                       </span>
                     )}
@@ -223,10 +296,10 @@ export function TripsPageClient({
                 )}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex-shrink-0">
               <button
                 onClick={handleCreateTrip}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 shadow-sm"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 shadow-sm w-full sm:w-auto"
               >
                 <svg
                   className="w-4 h-4 mr-2"
@@ -247,12 +320,12 @@ export function TripsPageClient({
           </div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {filteredTrips.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="mx-auto h-24 w-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+            <div className="text-center py-8 sm:py-12">
+              <div className="mx-auto h-20 w-20 sm:h-24 sm:w-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <svg
-                  className="h-12 w-12 text-gray-400"
+                  className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -268,14 +341,14 @@ export function TripsPageClient({
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 No trips scheduled
               </h3>
-              <p className="text-gray-600 mb-4">
+              <p className="text-gray-600 mb-6 max-w-sm mx-auto">
                 {!selectedDate
                   ? "Loading trips..."
                   : `There are no trips scheduled for ${selectedDate} at 6:00 AM.`}
               </p>
               <button
                 onClick={handleCreateTrip}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 shadow-sm"
               >
                 <svg
                   className="w-4 h-4 mr-2"
@@ -294,74 +367,160 @@ export function TripsPageClient({
               </button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {filteredTrips.map((trip) => {
-                const driver = drivers.find((d) => d.id === trip.driverId);
-                const route = routes.find((r) => r.id === trip.routeId);
+                const driver = Array.isArray(drivers)
+                  ? drivers.find((d) => d.id === trip.driverId)
+                  : undefined;
+                const route = Array.isArray(routes)
+                  ? routes.find((r) => r.id === trip.routeId)
+                  : undefined;
 
                 return (
                   <div
                     key={trip.id}
-                    className="bg-gray-50 rounded-lg border border-gray-200 p-4 hover:bg-gray-100 transition-colors"
+                    className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-all duration-200"
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-4">
-                          <div>
-                            <h3 className="font-medium text-gray-900">
-                              {route?.destination || "Unknown Route"}
-                            </h3>
-                            <p className="text-sm text-gray-600">
-                              {new Date(trip.date).toLocaleDateString()} at{" "}
-                              {trip.unitTime}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm text-gray-600">Seats</p>
-                            <p className="font-medium text-gray-900">
-                              {trip.seatCount}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm text-gray-600">Price</p>
-                            <p className="font-medium text-green-600">
-                              ₦{trip.price.toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm text-gray-600">Status</p>
-                            <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                trip.status === "published"
-                                  ? "bg-green-100 text-green-800"
-                                  : trip.status === "live"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        {/* Trip Header with Status Dot */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <h3 className="font-bold text-lg text-gray-900 truncate">
+                            {route?.destination || "Unknown Route"}
+                          </h3>
+                          <div
+                            className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                              trip.status === "published"
+                                ? "bg-green-500"
+                                : trip.status === "live"
+                                ? "bg-blue-500"
+                                : "bg-gray-400"
+                            }`}
+                            title={trip.status}
+                          />
+                        </div>
+
+                        {/* Trip Details - Vertical Layout */}
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className="w-4 h-4 text-gray-400 flex-shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
                             >
-                              {trip.status}
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            <span className="text-gray-600">
+                              {new Date(trip.date).toLocaleDateString("en-US", {
+                                month: "numeric",
+                                day: "numeric",
+                                year: "numeric",
+                              })}{" "}
+                              at {trip.unitTime}
                             </span>
                           </div>
-                        </div>
-                        {driver && (
-                          <div className="mt-2 text-sm text-gray-600">
-                            <span className="font-medium">Driver:</span>{" "}
-                            {driver.name}
-                            {trip.driverPhone && (
-                              <span className="ml-4">
-                                <span className="font-medium">Phone:</span>{" "}
-                                {trip.driverPhone}
+
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className="w-4 h-4 text-gray-400 flex-shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                              />
+                            </svg>
+                            <span className="text-gray-600">
+                              Seats:{" "}
+                              <span className="font-medium text-gray-900">
+                                {trip.seatCount}
                               </span>
-                            )}
+                            </span>
                           </div>
-                        )}
+
+                          <div className="flex items-center gap-2">
+                            <svg
+                              className="w-4 h-4 text-gray-400 flex-shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                              />
+                            </svg>
+                            <span className="text-gray-600">
+                              Price:{" "}
+                              <span className="font-bold text-green-600">
+                                ₦{trip.price.toLocaleString()}
+                              </span>
+                            </span>
+                          </div>
+
+                          {driver && (
+                            <div className="flex items-center gap-2">
+                              <svg
+                                className="w-4 h-4 text-gray-400 flex-shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                                />
+                              </svg>
+                              <span className="text-gray-600">
+                                Driver:{" "}
+                                <span className="font-medium text-gray-900">
+                                  {driver.name}
+                                </span>
+                                {trip.driverPhone && (
+                                  <span className="ml-2 text-gray-500">
+                                    ({trip.driverPhone})
+                                  </span>
+                                )}
+                              </span>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 ml-4">
+
+                      {/* Edit Button - Icon Only */}
+                      <div className="flex-shrink-0 ml-3">
                         <button
                           onClick={() => handleEditTrip(trip)}
-                          className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200"
+                          title="Edit trip"
                         >
-                          Edit
+                          <svg
+                            className="w-5 h-5 text-gray-600"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
                         </button>
                       </div>
                     </div>

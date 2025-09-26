@@ -90,10 +90,8 @@ export async function PUT(
       licenseExpiry: data.licenseExpiry.toISOString(),
       qualifiedRoute: data.qualifiedRoute,
       isActive: data.isActive,
-      rating: data.rating,
       vehiclePlateNumber: data.vehiclePlateNumber,
       address: data.address,
-      photo: data.photo,
     });
 
     return NextResponse.json({ success: true, data: updatedDriver });

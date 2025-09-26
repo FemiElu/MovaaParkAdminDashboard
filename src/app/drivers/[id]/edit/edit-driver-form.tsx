@@ -58,10 +58,8 @@ export default function EditDriverForm({
     licenseExpiry: driver.licenseExpiry || "",
     qualifiedRoute: driver.qualifiedRoute,
     isActive: driver.isActive,
-    rating: driver.rating,
     vehiclePlateNumber: driver.vehiclePlateNumber,
     address: driver.address,
-    photo: driver.photo,
   };
 
   return (

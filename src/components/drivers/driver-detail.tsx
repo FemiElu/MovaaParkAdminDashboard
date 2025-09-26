@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import { Driver } from "@/types";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -63,19 +62,6 @@ export default function DriverDetail({ driver }: Props) {
     <div className="space-y-3">
       <ExpiryBanner expiry={driver.licenseExpiry} />
       <div className="flex items-center gap-3">
-        {driver.photo ? (
-          <Image
-            src={driver.photo}
-            alt="Driver photo"
-            width={64}
-            height={64}
-            className="h-16 w-16 rounded-full object-cover"
-          />
-        ) : (
-          <div className="h-16 w-16 rounded-full bg-emerald-700 text-white flex items-center justify-center text-xl">
-            {driver.name.slice(0, 1).toUpperCase()}
-          </div>
-        )}
         <div>
           <div className="text-lg font-semibold text-gray-900">
             {driver.name}

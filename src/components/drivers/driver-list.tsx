@@ -1,7 +1,6 @@
 import React from "react";
 import { Driver, RouteConfig } from "@/types";
 import Link from "next/link";
-import Image from "next/image";
 import { RouteBadge } from "./route-badge";
 
 type Props = {
@@ -63,21 +62,6 @@ export default function DriverList({
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4 flex-1 min-w-0">
-                {/* Avatar */}
-                {d.photo ? (
-                  <Image
-                    src={d.photo}
-                    alt="Driver photo"
-                    width={48}
-                    height={48}
-                    className="h-12 w-12 rounded-full object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="h-12 w-12 rounded-full bg-emerald-700 text-white flex items-center justify-center text-lg font-medium flex-shrink-0">
-                    {d.name.slice(0, 1).toUpperCase()}
-                  </div>
-                )}
-
                 {/* Driver Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-1">

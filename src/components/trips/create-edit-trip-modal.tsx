@@ -11,8 +11,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trip, TripFormData, Vehicle, RecurrencePattern } from "@/types";
-import { listRoutes } from "@/lib/routes-store";
+import {
+  Trip,
+  TripFormData,
+  Vehicle,
+  RecurrencePattern,
+  RouteConfig,
+} from "@/types";
 
 interface CreateEditTripModalProps {
   isOpen: boolean;
@@ -61,19 +66,64 @@ export function CreateEditTripModal({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showRecurrencePreview, setShowRecurrencePreview] = useState(false);
+  const [routes, setRoutes] = useState<RouteConfig[]>([]);
+  const [loadingRoutes, setLoadingRoutes] = useState(true);
+  const [apiDrivers, setApiDrivers] = useState(drivers);
+  const [loadingDrivers, setLoadingDrivers] = useState(false);
 
-  // Get routes for the current park
-  const routes = useMemo(() => listRoutes(parkId), [parkId]);
+  // Fetch routes for the current park
+  useEffect(() => {
+    async function fetchRoutes() {
+      try {
+        setLoadingRoutes(true);
+        const response = await fetch(`/api/routes?parkId=${parkId}`);
+        const result = await response.json();
+        if (result.success) {
+          setRoutes(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch routes:", error);
+      } finally {
+        setLoadingRoutes(false);
+      }
+    }
+
+    if (isOpen) {
+      fetchRoutes();
+    }
+  }, [parkId, isOpen]);
+
+  // Fetch drivers from API to get the latest data
+  useEffect(() => {
+    async function fetchDrivers() {
+      try {
+        setLoadingDrivers(true);
+        const response = await fetch(`/api/drivers?parkId=${parkId}`);
+        if (response.ok) {
+          const result = await response.json();
+          setApiDrivers(result.data || []);
+        }
+      } catch (error) {
+        console.error("Failed to fetch drivers:", error);
+      } finally {
+        setLoadingDrivers(false);
+      }
+    }
+
+    if (isOpen) {
+      fetchDrivers();
+    }
+  }, [parkId, isOpen]);
 
   // Get drivers filtered by selected route
   const availableDrivers = useMemo(() => {
     if (!formData.routeId) {
-      return drivers; // Show all drivers if no route selected
+      return apiDrivers; // Show all drivers if no route selected
     }
-    return drivers.filter(
+    return apiDrivers.filter(
       (driver) => driver.routeIds && driver.routeIds.includes(formData.routeId)
     );
-  }, [drivers, formData.routeId]);
+  }, [apiDrivers, formData.routeId]);
 
   // Initialize form data when modal opens or trip changes
   useEffect(() => {
@@ -86,7 +136,7 @@ export function CreateEditTripModal({
           vehicleId: trip.vehicleId,
           seatCount: trip.seatCount,
           price: trip.price,
-          driverId: trip.driverId || "",
+          driverId: trip.driverId || undefined,
           driverPhone: trip.driverPhone || "",
           maxParcelsPerVehicle: trip.maxParcelsPerVehicle,
           isRecurring: trip.isRecurring,
@@ -121,6 +171,11 @@ export function CreateEditTripModal({
         setFormData((prev) => ({
           ...prev,
           maxParcelsPerVehicle: vehicle.maxParcelsPerVehicle,
+          // If seatCount is 0 or exceeds vehicle capacity, default to vehicle capacity
+          seatCount:
+            prev.seatCount > 0 && prev.seatCount <= vehicle.seatCount
+              ? prev.seatCount
+              : vehicle.seatCount,
         }));
       }
     }
@@ -143,7 +198,7 @@ export function CreateEditTripModal({
   // Update driver phone when driver changes
   useEffect(() => {
     if (formData.driverId) {
-      const driver = drivers.find((d) => d.id === formData.driverId);
+      const driver = apiDrivers.find((d) => d.id === formData.driverId);
       if (driver) {
         setFormData((prev) => ({
           ...prev,
@@ -157,12 +212,13 @@ export function CreateEditTripModal({
         driverPhone: "",
       }));
     }
-  }, [formData.driverId, drivers]);
+  }, [formData.driverId, apiDrivers]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
     if (!formData.routeId) newErrors.routeId = "Route is required";
+    if (!formData.vehicleId) newErrors.vehicleId = "Vehicle is required";
     if (!formData.date) newErrors.date = "Date is required";
     if (formData.seatCount <= 0)
       newErrors.seatCount = "Seat count must be greater than 0";
@@ -393,30 +449,59 @@ export function CreateEditTripModal({
                     </svg>
                     <span>Route</span>
                   </Label>
-                  <Select
-                    value={formData.routeId}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, routeId: value }))
-                    }
-                  >
-                    <SelectTrigger className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20">
-                      <SelectValue placeholder="Select a route" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {routes.map((route) => (
-                        <SelectItem key={route.id} value={route.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span className="font-medium">
-                              {route.destination}
-                            </span>
-                            <span className="text-green-600 font-semibold ml-2">
-                              ₦{route.basePrice.toLocaleString()}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {loadingRoutes ? (
+                    <div className="h-12 border border-gray-200 rounded-md bg-gray-50 flex items-center justify-center">
+                      <div className="flex items-center space-x-2">
+                        <svg
+                          className="animate-spin h-4 w-4 text-gray-500"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        <span className="text-sm text-gray-500">
+                          Loading routes...
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <Select
+                      value={formData.routeId}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({ ...prev, routeId: value }))
+                      }
+                    >
+                      <SelectTrigger className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20">
+                        <SelectValue placeholder="Select a route" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {routes.map((route) => (
+                          <SelectItem key={route.id} value={route.id}>
+                            <div className="flex items-center justify-between w-full">
+                              <span className="font-medium">
+                                {route.destination}
+                              </span>
+                              <span className="text-green-600 font-semibold ml-2">
+                                ₦{route.basePrice.toLocaleString()}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   {errors.routeId && (
                     <p className="text-sm text-red-600 mt-1 flex items-center space-x-1">
                       <svg
@@ -431,6 +516,67 @@ export function CreateEditTripModal({
                         />
                       </svg>
                       <span>{errors.routeId}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Vehicle Selection */}
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="vehicleId"
+                    className="text-sm font-semibold text-gray-700 flex items-center space-x-2"
+                  >
+                    <svg
+                      className="w-4 h-4 text-green-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 13h2l1-3h12l1 3h2a2 2 0 012 2v2a2 2 0 01-2 2h-1a3 3 0 11-6 0H9a3 3 0 11-6 0H2a2 2 0 01-2-2v-2a2 2 0 012-2z"
+                      />
+                    </svg>
+                    <span>Vehicle</span>
+                  </Label>
+                  <Select
+                    value={formData.vehicleId}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, vehicleId: value }))
+                    }
+                  >
+                    <SelectTrigger className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20">
+                      <SelectValue placeholder="Select a vehicle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vehicles.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-medium">{v.name}</span>
+                            <span className="text-gray-600 ml-2">
+                              {v.seatCount} seats
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.vehicleId && (
+                    <p className="text-sm text-red-600 mt-1 flex items-center space-x-1">
+                      <svg
+                        className="w-4 h-4"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      <span>{errors.vehicleId}</span>
                     </p>
                   )}
                 </div>
@@ -668,7 +814,34 @@ export function CreateEditTripModal({
                     </svg>
                     <span>Driver (Optional)</span>
                   </Label>
-                  {!formData.routeId && (
+                  {loadingRoutes || loadingDrivers ? (
+                    <div className="h-12 border border-gray-200 rounded-md bg-gray-50 flex items-center justify-center">
+                      <div className="flex items-center space-x-2">
+                        <svg
+                          className="animate-spin h-4 w-4 text-gray-500"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          ></circle>
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          ></path>
+                        </svg>
+                        <span className="text-sm text-gray-500">
+                          Loading drivers...
+                        </span>
+                      </div>
+                    </div>
+                  ) : !formData.routeId ? (
                     <div className="flex items-center space-x-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                       <svg
                         className="w-4 h-4 text-blue-600"
@@ -685,64 +858,67 @@ export function CreateEditTripModal({
                         Select a route first to see available drivers
                       </p>
                     </div>
-                  )}
-                  <Select
-                    value={formData.driverId || ""}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        driverId: value || undefined,
-                      }))
-                    }
-                  >
-                    <SelectTrigger className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20">
-                      <SelectValue placeholder="No driver assigned" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableDrivers.map((driver) => (
-                        <SelectItem key={driver.id} value={driver.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <div className="flex items-center space-x-2">
-                              <span className="font-medium">{driver.name}</span>
-                              <span className="text-gray-500">
-                                ({driver.phone})
-                              </span>
+                  ) : (
+                    <Select
+                      value={formData.driverId || ""}
+                      onValueChange={(value) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          driverId: value || undefined,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20">
+                        <SelectValue placeholder="No driver assigned" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableDrivers.map((driver) => (
+                          <SelectItem key={driver.id} value={driver.id}>
+                            <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center space-x-2">
+                                <span className="font-medium">
+                                  {driver.name}
+                                </span>
+                                <span className="text-gray-500">
+                                  ({driver.phone})
+                                </span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <svg
+                                  className="w-4 h-4 text-yellow-500"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
+                                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                </svg>
+                                <span className="text-yellow-600 font-semibold">
+                                  {driver.rating}
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex items-center space-x-1">
+                          </SelectItem>
+                        ))}
+                        {availableDrivers.length === 0 && formData.routeId && (
+                          <SelectItem value="no-drivers" disabled>
+                            <div className="flex items-center space-x-2">
                               <svg
-                                className="w-4 h-4 text-yellow-500"
+                                className="w-4 h-4 text-gray-400"
                                 fill="currentColor"
                                 viewBox="0 0 20 20"
                               >
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                <path
+                                  fillRule="evenodd"
+                                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                  clipRule="evenodd"
+                                />
                               </svg>
-                              <span className="text-yellow-600 font-semibold">
-                                {driver.rating}
-                              </span>
+                              <span>No drivers available for this route</span>
                             </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                      {availableDrivers.length === 0 && formData.routeId && (
-                        <SelectItem value="no-drivers" disabled>
-                          <div className="flex items-center space-x-2">
-                            <svg
-                              className="w-4 h-4 text-gray-400"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                            <span>No drivers available for this route</span>
-                          </div>
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
 
                 {/* Driver Phone */}
@@ -809,6 +985,10 @@ export function CreateEditTripModal({
                   setFormData((prev) => ({
                     ...prev,
                     isRecurring: e.target.checked,
+                    // Initialize a default recurrence pattern so validation passes
+                    recurrencePattern: e.target.checked
+                      ? prev.recurrencePattern || { type: "daily" }
+                      : undefined,
                   }))
                 }
                 className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
@@ -824,6 +1004,22 @@ export function CreateEditTripModal({
                 <h3 className="font-medium text-gray-900">
                   Recurrence Pattern
                 </h3>
+                {errors.recurrencePattern && (
+                  <p className="text-sm text-red-600 mt-1 flex items-center space-x-1">
+                    <svg
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>{errors.recurrencePattern}</span>
+                  </p>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
