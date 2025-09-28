@@ -6,8 +6,6 @@ import { listRoutes, createRoute } from "@/lib/routes-store";
 
 const routeSchema = z.object({
   destination: z.string().min(1),
-  basePrice: z.number().min(1000),
-  vehicleCapacity: z.number().min(10).max(50),
   isActive: z.boolean(),
   parkId: z.string().optional(),
 });

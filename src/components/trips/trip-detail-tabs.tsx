@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trip, Vehicle, Booking, Parcel } from "@/lib/trips-store";
+import { Trip, Booking, Parcel } from "@/lib/trips-store";
 import { PassengerManifestTable } from "./passenger-manifest-table";
 import { ParcelsTable } from "./parcels-table";
 import { TripFinanceSummary } from "./trip-finance-summary";
@@ -9,7 +9,6 @@ import { AuditLog } from "./audit-log";
 
 interface TripDetailTabsProps {
   trip: Trip;
-  vehicle?: Vehicle;
   driver?: {
     id: string;
     name: string;
@@ -23,7 +22,6 @@ interface TripDetailTabsProps {
 
 export function TripDetailTabs({
   trip,
-  vehicle,
   // driver, // Unused parameter
   bookings,
   parcels,
@@ -70,14 +68,10 @@ export function TripDetailTabs({
       {/* Tab Content */}
       <div className="p-3 sm:p-6">
         {activeTab === "passengers" && (
-          <PassengerManifestTable
-            trip={trip}
-            bookings={bookings}
-            vehicle={vehicle}
-          />
+          <PassengerManifestTable trip={trip} bookings={bookings} />
         )}
         {activeTab === "parcels" && (
-          <ParcelsTable trip={trip} parcels={parcels} vehicle={vehicle} />
+          <ParcelsTable trip={trip} parcels={parcels} />
         )}
         {activeTab === "finances" && (
           <TripFinanceSummary

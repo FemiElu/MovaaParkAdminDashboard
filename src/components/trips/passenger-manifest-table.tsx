@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Trip, Booking, Vehicle } from "@/lib/trips-store";
+import { Trip, Booking } from "@/lib/trips-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,13 +29,11 @@ import {
 interface PassengerManifestTableProps {
   trip: Trip;
   bookings: Booking[];
-  vehicle?: Vehicle;
 }
 
 export function PassengerManifestTable({
   trip,
   bookings,
-  vehicle,
 }: PassengerManifestTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -169,10 +167,7 @@ export function PassengerManifestTable({
         <div className="bg-gray-50 p-3 rounded-lg">
           <p className="text-sm text-gray-600">Seat Utilization</p>
           <p className="text-lg font-semibold">
-            {vehicle
-              ? Math.round((bookings.length / vehicle.seatCount) * 100)
-              : 0}
-            %
+            {Math.round((bookings.length / trip.seatCount) * 100)}%
           </p>
         </div>
       </div>

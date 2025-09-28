@@ -57,12 +57,10 @@ export default async function TripDetailPage({
   }
 
   const parkId = session.user.parkId ?? "lekki-phase-1-motor-park";
-  const vehicles = tripsStore.getVehicles(parkId);
   const drivers = tripsStore.getDrivers(parkId);
   const bookings = tripsStore.getBookings(trip.id);
   const parcels = tripsStore.getParcels(trip.id);
 
-  const vehicle = vehicles.find((v) => v.id === trip.vehicleId);
   const driver = drivers.find((d) => d.id === trip.driverId);
 
   return (
@@ -139,7 +137,7 @@ export default async function TripDetailPage({
             <div className="bg-white p-4 rounded-lg border">
               <h3 className="text-sm font-medium text-gray-500">Vehicle</h3>
               <p className="text-lg font-semibold text-gray-900">
-                {vehicle?.name || "Unknown"}
+                Managed Offline
               </p>
             </div>
             <TripDriverAssignment
@@ -171,7 +169,6 @@ export default async function TripDetailPage({
           {/* Trip Detail Tabs */}
           <TripDetailTabs
             trip={trip}
-            vehicle={vehicle}
             driver={driver}
             bookings={bookings}
             parcels={parcels}

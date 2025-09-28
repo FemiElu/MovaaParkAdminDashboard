@@ -275,11 +275,10 @@ class TripsStore {
                   routeId: route.id,
                   date: dateStr,
                   unitTime: "06:00",
-                  vehicleId: vehicle.id,
                   seatCount: vehicle.seatCount,
                   confirmedBookingsCount: 0,
                   maxParcelsPerVehicle: vehicle.maxParcelsPerVehicle,
-                  price: route.basePrice,
+                  price: 5000, // Default price since routes no longer have basePrice
                   status: "draft",
                   payoutStatus: "NotScheduled",
                   isRecurring: false,
@@ -392,7 +391,7 @@ class TripsStore {
           nokPhone: `+234${Math.floor(Math.random() * 900000000) + 700000000}`,
           nokAddress: addresses[bookingCount % addresses.length],
           seatNumber: trip.confirmedBookingsCount + 1,
-          amountPaid: route.basePrice,
+          amountPaid: 5000, // Default price since routes no longer have basePrice
           paymentStatus: "confirmed",
           bookingStatus: "confirmed",
           createdAt: new Date().toISOString(),
@@ -572,18 +571,17 @@ class TripsStore {
     const trip = this.getTrip(tripId);
     if (!trip) return { success: false, reason: "Trip not found" };
 
-    const vehicle = this.vehicles.find((v) => v.id === trip.vehicleId);
-    if (!vehicle) return { success: false, reason: "Vehicle not found" };
+    // Vehicle information is now managed offline by Park admin
 
     const currentParcels = this.parcels.filter(
       (p) => p.assignedTripId === tripId
     );
     const newParcelCount = currentParcels.length + parcelIds.length;
 
-    if (newParcelCount > vehicle.maxParcelsPerVehicle && !override) {
+    if (newParcelCount > trip.maxParcelsPerVehicle && !override) {
       return {
         success: false,
-        reason: `Would exceed vehicle capacity (${vehicle.maxParcelsPerVehicle}). Use override to proceed.`,
+        reason: `Would exceed trip capacity (${trip.maxParcelsPerVehicle}). Use override to proceed.`,
       };
     }
 
@@ -704,16 +702,11 @@ class TripsStore {
     parkId: string
   ): { success: boolean; trips?: Trip[]; error?: string } {
     try {
-      const vehicle = this.vehicles.find((v) => v.id === tripData.vehicleId);
-      if (!vehicle) {
-        return { success: false, error: "Vehicle not found" };
-      }
-
-      // Validate seat count
-      if (tripData.seatCount > vehicle.seatCount) {
+      // Validate seat count (max 50 seats as per business rules)
+      if (tripData.seatCount > 50) {
         return {
           success: false,
-          error: `Seat count (${tripData.seatCount}) cannot exceed vehicle capacity (${vehicle.seatCount})`,
+          error: `Seat count (${tripData.seatCount}) cannot exceed 50 seats`,
         };
       }
 
@@ -760,7 +753,6 @@ class TripsStore {
       routeId: tripData.routeId,
       date: tripData.date,
       unitTime: tripData.unitTime,
-      vehicleId: tripData.vehicleId,
       seatCount: tripData.seatCount,
       confirmedBookingsCount: 0,
       maxParcelsPerVehicle: tripData.maxParcelsPerVehicle,
@@ -812,7 +804,6 @@ class TripsStore {
           routeId: tripData.routeId,
           date: dateStr,
           unitTime: tripData.unitTime,
-          vehicleId: tripData.vehicleId,
           seatCount: tripData.seatCount,
           confirmedBookingsCount: 0,
           maxParcelsPerVehicle: tripData.maxParcelsPerVehicle,
@@ -884,15 +875,12 @@ class TripsStore {
 
     // Validate seat count if being updated
     if (updates.seatCount !== undefined) {
-      const vehicle = this.vehicles.find((v) => v.id === trip.vehicleId);
-      if (!vehicle) {
-        return { success: false, error: "Vehicle not found" };
-      }
+      // Vehicle information is now managed offline by Park admin
 
-      if (updates.seatCount > vehicle.seatCount) {
+      if (updates.seatCount > 50) {
         return {
           success: false,
-          error: `Seat count (${updates.seatCount}) cannot exceed vehicle capacity (${vehicle.seatCount})`,
+          error: `Seat count (${updates.seatCount}) cannot exceed 50 seats`,
         };
       }
 

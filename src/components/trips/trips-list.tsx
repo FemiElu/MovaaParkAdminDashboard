@@ -13,13 +13,12 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { EnhancedTripCard } from "./enhanced-trip-card";
-import { Trip, Vehicle, tripsStore } from "@/lib/trips-store";
+import { Trip, tripsStore } from "@/lib/trips-store";
 import { listRoutes } from "@/lib/routes-store";
 
 interface TripsListProps {
   parkId: string;
   trips: Trip[];
-  vehicles: Vehicle[];
   drivers: Array<{
     id: string;
     name: string;
@@ -34,7 +33,6 @@ interface TripsListProps {
 export function TripsList({
   parkId,
   trips,
-  vehicles,
   drivers,
   onEditTrip,
   onCreateTrip,
@@ -55,12 +53,10 @@ export function TripsList({
     if (searchTerm) {
       filtered = filtered.filter((trip) => {
         const route = routes.find((r) => r.id === trip.routeId);
-        const vehicle = vehicles.find((v) => v.id === trip.vehicleId);
         const driver = drivers.find((d) => d.id === trip.driverId);
 
         return (
           route?.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          vehicle?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           driver?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
           trip.date.includes(searchTerm)
         );
@@ -80,7 +76,7 @@ export function TripsList({
     return filtered.sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
-  }, [trips, searchTerm, statusFilter, routeFilter, routes, vehicles, drivers]);
+  }, [trips, searchTerm, statusFilter, routeFilter, routes, drivers]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -298,7 +294,6 @@ export function TripsList({
           ) : (
             <div className="grid gap-6">
               {filteredTrips.map((trip) => {
-                const vehicle = vehicles.find((v) => v.id === trip.vehicleId);
                 const driver = drivers.find((d) => d.id === trip.driverId);
                 const bookings = tripsStore.getBookings(trip.id);
                 const parcels = tripsStore.getParcels(trip.id);
@@ -307,7 +302,6 @@ export function TripsList({
                   <EnhancedTripCard
                     key={trip.id}
                     trip={trip}
-                    vehicle={vehicle}
                     driver={driver}
                     drivers={drivers}
                     bookingsCount={bookings.length}

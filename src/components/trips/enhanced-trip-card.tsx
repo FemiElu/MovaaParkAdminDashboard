@@ -13,13 +13,12 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trip, Vehicle, tripsStore } from "@/lib/trips-store";
+import { Trip, tripsStore } from "@/lib/trips-store";
 import { AssignDriverModal } from "./assign-driver-modal";
 import { useState } from "react";
 
 interface EnhancedTripCardProps {
   trip: Trip;
-  vehicle?: Vehicle;
   driver?: {
     id: string;
     name: string;
@@ -40,7 +39,6 @@ interface EnhancedTripCardProps {
 
 export function EnhancedTripCard({
   trip,
-  vehicle,
   driver,
   drivers,
   bookingsCount,
@@ -138,7 +136,7 @@ export function EnhancedTripCard({
                 <div className="flex items-center gap-1">
                   <Users className="h-4 w-4" />
                   <span className="truncate max-w-[120px] sm:max-w-none">
-                    {vehicle?.name || "Unknown Vehicle"}
+                    Managed Offline
                   </span>
                 </div>
                 {trip.isRecurring && (

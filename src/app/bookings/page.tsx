@@ -5,8 +5,7 @@ import { DashboardHeader } from "@/components/dashboard/header";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { MobileHeader } from "@/components/dashboard/mobile-header";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
-import { LiveBookingsManager } from "@/components/bookings/live-bookings-manager";
-import { LiveTripsManager } from "@/components/bookings/live-trips-manager";
+import { TripBookingsManager } from "@/components/bookings/trip-bookings-manager";
 import { ConsolidatedBookingStats } from "@/components/bookings/consolidated-booking-stats";
 import { tripsStore } from "@/lib/trips-store";
 
@@ -35,25 +34,11 @@ export default async function LiveBookingsPage() {
           {/* Consolidated Stats */}
           <ConsolidatedBookingStats parkId={session.user.parkId || ""} />
 
-          {/* Live Bookings Section */}
-          <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Live Bookings
-            </h2>
-            <LiveBookingsManager parkId={session.user.parkId || ""} />
-          </div>
-
-          {/* Live Trips Section */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Active Trip Operations
-            </h2>
-            <LiveTripsManager
-              parkId={session.user.parkId || ""}
-              vehicles={tripsStore.getVehicles(session.user.parkId || "")}
-              drivers={tripsStore.getDrivers(session.user.parkId || "")}
-            />
-          </div>
+          {/* Trip Bookings Manager */}
+          <TripBookingsManager
+            parkId={session.user.parkId || ""}
+            drivers={tripsStore.getDrivers(session.user.parkId || "")}
+          />
         </main>
       </div>
 

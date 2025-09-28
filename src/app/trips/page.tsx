@@ -4,7 +4,6 @@ import { DashboardHeader } from "@/components/dashboard/header";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { MobileHeader } from "@/components/dashboard/mobile-header";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
-import { tripsStore } from "@/lib/trips-store";
 import { TripsPageClient } from "@/components/trips/trips-page-client";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +17,6 @@ export default async function TripsPage() {
   }
 
   const parkId = session.user.parkId ?? "lekki-phase-1-motor-park";
-  const vehicles = tripsStore.getVehicles(parkId);
-  const drivers = tripsStore.getDrivers(parkId);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -38,11 +35,7 @@ export default async function TripsPage() {
           </div>
 
           {/* Client Component for Interactive Features */}
-          <TripsPageClient
-            parkId={parkId}
-            vehicles={vehicles}
-            drivers={drivers}
-          />
+          <TripsPageClient parkId={parkId} />
         </main>
       </div>
       <MobileBottomNav />

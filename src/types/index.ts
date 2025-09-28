@@ -19,8 +19,6 @@ export interface RouteConfig {
   id: string;
   parkId: string;
   destination: string;
-  basePrice: number;
-  vehicleCapacity: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -194,8 +192,6 @@ export interface PaginatedResponse<T> {
 // Form validation types
 export interface RouteFormData {
   destination: string;
-  basePrice: number;
-  vehicleCapacity: number;
   isActive: boolean;
 }
 
@@ -247,7 +243,6 @@ export interface Trip {
   routeId: string;
   date: string; // YYYY-MM-DD
   unitTime: string; // HH:MM format
-  vehicleId: string;
   seatCount: number;
   confirmedBookingsCount: number;
   maxParcelsPerVehicle: number;
@@ -303,7 +298,6 @@ export interface TripFormData {
   routeId: string;
   date: string;
   unitTime: string;
-  vehicleId: string;
   seatCount: number;
   price: number;
   driverId?: string;

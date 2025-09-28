@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Trip, Parcel, Vehicle } from "@/lib/trips-store";
+import { Trip, Parcel } from "@/lib/trips-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,10 +26,9 @@ import { PhoneIcon, PrinterIcon } from "@heroicons/react/24/outline";
 interface ParcelsTableProps {
   trip: Trip;
   parcels: Parcel[];
-  vehicle?: Vehicle;
 }
 
-export function ParcelsTable({ trip, parcels, vehicle }: ParcelsTableProps) {
+export function ParcelsTable({ trip, parcels }: ParcelsTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -75,9 +74,7 @@ export function ParcelsTable({ trip, parcels, vehicle }: ParcelsTableProps) {
     (sum, parcel) => sum + parcel.fee,
     0
   );
-  const capacityUsage = vehicle
-    ? (parcels.length / vehicle.maxParcelsPerVehicle) * 100
-    : 0;
+  const capacityUsage = (parcels.length / trip.maxParcelsPerVehicle) * 100;
 
   return (
     <div className="space-y-4">
@@ -143,9 +140,7 @@ export function ParcelsTable({ trip, parcels, vehicle }: ParcelsTableProps) {
         </div>
         <div className="bg-gray-50 p-3 rounded-lg">
           <p className="text-sm text-gray-600">Max Capacity</p>
-          <p className="text-lg font-semibold">
-            {vehicle?.maxParcelsPerVehicle || "N/A"}
-          </p>
+          <p className="text-lg font-semibold">{trip.maxParcelsPerVehicle}</p>
         </div>
       </div>
 
@@ -172,9 +167,9 @@ export function ParcelsTable({ trip, parcels, vehicle }: ParcelsTableProps) {
               </h3>
               <div className="mt-2 text-sm text-yellow-700">
                 <p>
-                  Vehicle capacity is {Math.round(capacityUsage)}% full.
+                  Parcel capacity is {Math.round(capacityUsage)}% full.
                   {capacityUsage >= 100 &&
-                    " Consider assigning additional vehicles."}
+                    " Consider managing capacity offline."}
                 </p>
               </div>
             </div>

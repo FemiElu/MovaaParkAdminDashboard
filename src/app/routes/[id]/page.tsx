@@ -4,7 +4,6 @@ import { listDrivers } from "@/lib/drivers-store";
 import { RouteConfig, Driver } from "@/types";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import EditBaseFareClient from "./EditBaseFareClient";
 import { listRoutes, getRoute as getRouteFromStore } from "@/lib/routes-store";
 
 // Ensure this page is always rendered dynamically (session-dependent)
@@ -141,7 +140,6 @@ export default async function RouteDetailPage({
       </div>
 
       {/* Editable Base Fare */}
-      <EditBaseFareClient route={route} />
 
       {/* Drivers Table */}
       <section className="mt-8">
@@ -195,9 +193,7 @@ export default async function RouteDetailPage({
                         {driver.isActive ? "Active" : "Inactive"}
                       </span>
                     </td>
-                    <td className="px-4 py-2 whitespace-nowrap">
-                      {route.vehicleCapacity} seats
-                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap">N/A</td>
                   </tr>
                 ))}
               </tbody>

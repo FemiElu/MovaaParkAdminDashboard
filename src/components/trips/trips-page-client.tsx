@@ -1,28 +1,24 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { tripsStore, Vehicle } from "@/lib/trips-store";
 import { RouteTabs } from "./route-tabs";
 import { CreateEditTripModal } from "./create-edit-trip-modal";
-import { listRoutes } from "@/lib/routes-store";
-import { TripFormData, Trip } from "@/types";
+import { TripFormData, Trip, RouteConfig } from "@/types";
 
 interface TripsPageClientProps {
   parkId: string;
-  vehicles: Vehicle[];
   drivers?: Array<{
     id: string;
     name: string;
     phone: string;
     rating: number;
     parkId: string;
-    routeIds?: string[];
+    qualifiedRoute: string;
   }>;
 }
 
 export function TripsPageClient({
   parkId,
-  vehicles,
   drivers: initialDrivers = [],
 }: TripsPageClientProps) {
   const [selectedDate, setSelectedDate] = useState("");
@@ -32,6 +28,7 @@ export function TripsPageClient({
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [apiTrips, setApiTrips] = useState<Trip[]>([]);
   const [drivers, setDrivers] = useState(initialDrivers || []);
+  const [routes, setRoutes] = useState<RouteConfig[]>([]);
 
   // Static departure time
   const departureTime = "06:00";
@@ -52,7 +49,9 @@ export function TripsPageClient({
         const response = await fetch(`/api/drivers?parkId=${parkId}`);
         if (response.ok) {
           const result = await response.json();
-          setDrivers(Array.isArray(result.data) ? result.data : []);
+          // The API returns { success: true, data: { data: [...], total, page, limit, hasNext, hasPrev } }
+          const driversArray = result.data?.data || result.data || [];
+          setDrivers(Array.isArray(driversArray) ? driversArray : []);
         }
       } catch (error) {
         console.error("Failed to fetch drivers:", error);
@@ -64,8 +63,26 @@ export function TripsPageClient({
     }
   }, [parkId, isClient]);
 
-  // Get routes for the current park
-  const routes = useMemo(() => listRoutes(parkId) || [], [parkId]);
+  // Fetch routes from API to get the latest data
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      try {
+        const response = await fetch(`/api/routes?parkId=${parkId}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setRoutes(result.data || []);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch routes:", error);
+      }
+    };
+
+    if (isClient) {
+      fetchRoutes();
+    }
+  }, [parkId, isClient]);
 
   // Fetch trips from API so server-created data is reflected client-side
   useEffect(() => {
@@ -114,8 +131,7 @@ export function TripsPageClient({
   // Calculate simplified stats for the selected date/time/route
   const stats = useMemo(() => {
     const totalBookings = filteredTrips.reduce((sum, trip) => {
-      const bookings = tripsStore.getBookings(trip.id);
-      return sum + bookings.length;
+      return sum + trip.confirmedBookingsCount;
     }, 0);
 
     return {
@@ -538,7 +554,6 @@ export function TripsPageClient({
         onClose={handleCloseModal}
         onSave={handleSaveTrip}
         parkId={parkId}
-        vehicles={vehicles}
         drivers={drivers}
         trip={editingTrip || undefined}
         mode={editingTrip ? "edit" : "create"}

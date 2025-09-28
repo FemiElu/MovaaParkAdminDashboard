@@ -11,13 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Trip,
-  TripFormData,
-  Vehicle,
-  RecurrencePattern,
-  RouteConfig,
-} from "@/types";
+import { Trip, TripFormData, RecurrencePattern, RouteConfig } from "@/types";
 
 interface CreateEditTripModalProps {
   isOpen: boolean;
@@ -26,14 +20,13 @@ interface CreateEditTripModalProps {
     tripData: TripFormData
   ) => Promise<{ success: boolean; error?: string }>;
   parkId: string;
-  vehicles: Vehicle[];
   drivers: Array<{
     id: string;
     name: string;
     phone: string;
     rating: number;
     parkId: string;
-    routeIds?: string[];
+    qualifiedRoute: string;
   }>;
   trip?: Trip; // For editing
   mode?: "create" | "edit";
@@ -44,7 +37,6 @@ export function CreateEditTripModal({
   onClose,
   onSave,
   parkId,
-  vehicles,
   drivers,
   trip,
   mode = "create",
@@ -53,12 +45,11 @@ export function CreateEditTripModal({
     routeId: "",
     date: "",
     unitTime: "06:00",
-    vehicleId: "",
-    seatCount: 0,
+    seatCount: 18,
     price: 0,
     driverId: undefined,
     driverPhone: "",
-    maxParcelsPerVehicle: 0,
+    maxParcelsPerVehicle: 10,
     isRecurring: false,
     status: "draft",
   });
@@ -68,7 +59,16 @@ export function CreateEditTripModal({
   const [showRecurrencePreview, setShowRecurrencePreview] = useState(false);
   const [routes, setRoutes] = useState<RouteConfig[]>([]);
   const [loadingRoutes, setLoadingRoutes] = useState(true);
-  const [apiDrivers, setApiDrivers] = useState(drivers);
+  const [apiDrivers, setApiDrivers] = useState<
+    Array<{
+      id: string;
+      name: string;
+      phone: string;
+      rating: number;
+      parkId: string;
+      qualifiedRoute: string;
+    }>
+  >(drivers || []);
   const [loadingDrivers, setLoadingDrivers] = useState(false);
 
   // Fetch routes for the current park
@@ -101,10 +101,19 @@ export function CreateEditTripModal({
         const response = await fetch(`/api/drivers?parkId=${parkId}`);
         if (response.ok) {
           const result = await response.json();
-          setApiDrivers(result.data || []);
+          // The API returns { success: true, data: { data: [...], total, page, limit, hasNext, hasPrev } }
+          // So we need to access result.data.data for the actual drivers array
+          const driversArray = result.data?.data || result.data || [];
+          console.log("API Drivers Response:", { result, driversArray });
+          setApiDrivers(Array.isArray(driversArray) ? driversArray : []);
+        } else {
+          // If API call fails, keep the existing drivers or fall back to empty array
+          console.warn("Failed to fetch drivers, keeping existing data");
         }
       } catch (error) {
         console.error("Failed to fetch drivers:", error);
+        // On error, keep the existing drivers or fall back to empty array
+        setApiDrivers(drivers || []);
       } finally {
         setLoadingDrivers(false);
       }
@@ -113,17 +122,49 @@ export function CreateEditTripModal({
     if (isOpen) {
       fetchDrivers();
     }
-  }, [parkId, isOpen]);
+  }, [parkId, isOpen, drivers]);
 
   // Get drivers filtered by selected route
   const availableDrivers = useMemo(() => {
+    // Safety check: ensure apiDrivers is always an array
+    if (!Array.isArray(apiDrivers)) {
+      console.warn("apiDrivers is not an array:", apiDrivers);
+      return [];
+    }
+
     if (!formData.routeId) {
       return apiDrivers; // Show all drivers if no route selected
     }
-    return apiDrivers.filter(
-      (driver) => driver.routeIds && driver.routeIds.includes(formData.routeId)
+
+    // Find the selected route to get its destination
+    const selectedRoute = routes.find((route) => route.id === formData.routeId);
+    if (!selectedRoute) {
+      return apiDrivers; // Show all drivers if route not found
+    }
+
+    // Filter drivers by checking if their qualifiedRoute matches the selected route's destination
+    const filteredDrivers = apiDrivers.filter(
+      (driver) => driver.qualifiedRoute === selectedRoute.destination
     );
-  }, [apiDrivers, formData.routeId]);
+
+    // Debug logging
+    console.log("Driver filtering debug:", {
+      selectedRouteId: formData.routeId,
+      selectedRouteDestination: selectedRoute.destination,
+      totalDrivers: apiDrivers.length,
+      filteredDrivers: filteredDrivers.length,
+      allDrivers: apiDrivers.map((d) => ({
+        name: d.name,
+        qualifiedRoute: d.qualifiedRoute,
+      })),
+      filteredDriversDetails: filteredDrivers.map((d) => ({
+        name: d.name,
+        qualifiedRoute: d.qualifiedRoute,
+      })),
+    });
+
+    return filteredDrivers;
+  }, [apiDrivers, formData.routeId, routes]);
 
   // Initialize form data when modal opens or trip changes
   useEffect(() => {
@@ -133,7 +174,6 @@ export function CreateEditTripModal({
           routeId: trip.routeId,
           date: trip.date,
           unitTime: trip.unitTime,
-          vehicleId: trip.vehicleId,
           seatCount: trip.seatCount,
           price: trip.price,
           driverId: trip.driverId || undefined,
@@ -149,12 +189,11 @@ export function CreateEditTripModal({
           routeId: "",
           date: "",
           unitTime: "06:00",
-          vehicleId: "",
-          seatCount: 0,
+          seatCount: 18,
           price: 0,
           driverId: undefined,
           driverPhone: "",
-          maxParcelsPerVehicle: 0,
+          maxParcelsPerVehicle: 10,
           isRecurring: false,
           status: "draft",
         });
@@ -163,41 +202,9 @@ export function CreateEditTripModal({
     }
   }, [isOpen, mode, trip]);
 
-  // Update max parcels when vehicle changes
-  useEffect(() => {
-    if (formData.vehicleId) {
-      const vehicle = vehicles.find((v) => v.id === formData.vehicleId);
-      if (vehicle) {
-        setFormData((prev) => ({
-          ...prev,
-          maxParcelsPerVehicle: vehicle.maxParcelsPerVehicle,
-          // If seatCount is 0 or exceeds vehicle capacity, default to vehicle capacity
-          seatCount:
-            prev.seatCount > 0 && prev.seatCount <= vehicle.seatCount
-              ? prev.seatCount
-              : vehicle.seatCount,
-        }));
-      }
-    }
-  }, [formData.vehicleId, vehicles]);
-
-  // Update price when route changes
-  useEffect(() => {
-    if (formData.routeId) {
-      const route = routes.find((r) => r.id === formData.routeId);
-      if (route && !trip) {
-        // Only auto-set price for new trips
-        setFormData((prev) => ({
-          ...prev,
-          price: route.basePrice,
-        }));
-      }
-    }
-  }, [formData.routeId, routes, trip]);
-
   // Update driver phone when driver changes
   useEffect(() => {
-    if (formData.driverId) {
+    if (formData.driverId && Array.isArray(apiDrivers)) {
       const driver = apiDrivers.find((d) => d.id === formData.driverId);
       if (driver) {
         setFormData((prev) => ({
@@ -218,16 +225,14 @@ export function CreateEditTripModal({
     const newErrors: Record<string, string> = {};
 
     if (!formData.routeId) newErrors.routeId = "Route is required";
-    if (!formData.vehicleId) newErrors.vehicleId = "Vehicle is required";
     if (!formData.date) newErrors.date = "Date is required";
     if (formData.seatCount <= 0)
       newErrors.seatCount = "Seat count must be greater than 0";
     if (formData.price <= 0) newErrors.price = "Price must be greater than 0";
 
-    // Validate seat count against maximum available
-    const maxSeats = vehicles.reduce((max, v) => Math.max(max, v.seatCount), 0);
-    if (formData.seatCount > maxSeats) {
-      newErrors.seatCount = `Seat count cannot exceed maximum vehicle capacity (${maxSeats})`;
+    // Validate seat count (reasonable range)
+    if (formData.seatCount > 50) {
+      newErrors.seatCount = "Seat count cannot exceed 50";
     }
 
     // Validate date is not in the past
@@ -353,18 +358,18 @@ export function CreateEditTripModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50"
       onClick={handleBackdropClick}
     >
-      <div className="max-w-5xl w-full max-h-[95vh] bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+      <div className="max-w-5xl w-full max-h-[95vh] sm:max-h-[90vh] bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
         {/* Enhanced Header */}
-        <div className="relative p-8 border-b border-gray-100 bg-gradient-to-br from-green-50 via-white to-blue-50">
+        <div className="relative p-4 sm:p-6 lg:p-8 border-b border-gray-100 bg-gradient-to-br from-green-50 via-white to-blue-50">
           <div className="absolute inset-0 bg-gradient-to-r from-green-500/5 to-blue-500/5"></div>
           <div className="relative flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center justify-center w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg">
+            <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
+              <div className="flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-lg sm:rounded-xl shadow-lg flex-shrink-0">
                 <svg
-                  className="w-6 h-6 text-white"
+                  className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -377,11 +382,11 @@ export function CreateEditTripModal({
                   />
                 </svg>
               </div>
-              <div>
-                <h2 className="text-3xl font-bold text-gray-900">
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-gray-900 truncate">
                   {mode === "create" ? "Create New Trip" : "Edit Trip"}
                 </h2>
-                <p className="text-gray-600 mt-1 font-medium">
+                <p className="text-xs sm:text-sm lg:text-base text-gray-600 mt-1 font-medium hidden sm:block">
                   {mode === "create"
                     ? "Schedule a new trip or recurring trip series"
                     : "Update trip details and settings"}
@@ -390,11 +395,11 @@ export function CreateEditTripModal({
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-all duration-200 p-3 rounded-xl hover:bg-gray-100 hover:scale-105"
+              className="text-gray-400 hover:text-gray-600 transition-all duration-200 p-2 sm:p-3 rounded-lg sm:rounded-xl hover:bg-gray-100 hover:scale-105 flex-shrink-0"
               type="button"
             >
               <svg
-                className="w-6 h-6"
+                className="w-5 h-5 sm:w-6 sm:h-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -410,8 +415,11 @@ export function CreateEditTripModal({
           </div>
         </div>
 
-        <div className="overflow-y-auto max-h-[calc(95vh-200px)]">
-          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+        <div className="overflow-y-auto max-h-[calc(95vh-120px)] sm:max-h-[calc(95vh-200px)]">
+          <form
+            onSubmit={handleSubmit}
+            className="p-4 sm:p-6 lg:p-8 space-y-6 sm:space-y-8"
+          >
             {/* Main Form Section */}
             <div className="space-y-6">
               <div className="flex items-center space-x-2 mb-6">
@@ -421,7 +429,7 @@ export function CreateEditTripModal({
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8">
                 {/* Route Selection */}
                 <div className="space-y-2">
                   <Label
@@ -493,8 +501,8 @@ export function CreateEditTripModal({
                               <span className="font-medium">
                                 {route.destination}
                               </span>
-                              <span className="text-green-600 font-semibold ml-2">
-                                ₦{route.basePrice.toLocaleString()}
+                              <span className="text-gray-500 text-sm ml-2">
+                                {route.isActive ? "Active" : "Inactive"}
                               </span>
                             </div>
                           </SelectItem>
@@ -520,97 +528,64 @@ export function CreateEditTripModal({
                   )}
                 </div>
 
-                {/* Vehicle Selection */}
-                <div className="space-y-2">
-                  <Label
-                    htmlFor="vehicleId"
-                    className="text-sm font-semibold text-gray-700 flex items-center space-x-2"
-                  >
-                    <svg
-                      className="w-4 h-4 text-green-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 13h2l1-3h12l1 3h2a2 2 0 012 2v2a2 2 0 01-2 2h-1a3 3 0 11-6 0H9a3 3 0 11-6 0H2a2 2 0 01-2-2v-2a2 2 0 012-2z"
-                      />
-                    </svg>
-                    <span>Vehicle</span>
-                  </Label>
-                  <Select
-                    value={formData.vehicleId}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({ ...prev, vehicleId: value }))
-                    }
-                  >
-                    <SelectTrigger className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20">
-                      <SelectValue placeholder="Select a vehicle" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {vehicles.map((v) => (
-                        <SelectItem key={v.id} value={v.id}>
-                          <div className="flex items-center justify-between w-full">
-                            <span className="font-medium">{v.name}</span>
-                            <span className="text-gray-600 ml-2">
-                              {v.seatCount} seats
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.vehicleId && (
-                    <p className="text-sm text-red-600 mt-1 flex items-center space-x-1">
-                      <svg
-                        className="w-4 h-4"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      <span>{errors.vehicleId}</span>
-                    </p>
-                  )}
-                </div>
-
                 {/* Date */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label
                     htmlFor="date"
                     className="text-sm font-semibold text-gray-700 flex items-center space-x-2"
                   >
-                    <svg
-                      className="w-4 h-4 text-green-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                    <span>Date</span>
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                      <svg
+                        className="w-4 h-4 text-green-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                    <span>Departure Date</span>
                   </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, date: e.target.value }))
-                    }
-                    className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="date"
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          date: e.target.value,
+                        }))
+                      }
+                      className="h-12 sm:h-14 pl-10 sm:pl-12 pr-4 text-base sm:text-lg border-2 border-gray-200 focus:border-green-500 focus:ring-4 focus:ring-green-500/10 rounded-lg sm:rounded-xl transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z'/%3e%3c/svg%3e")`,
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "12px center",
+                        backgroundSize: "18px 18px",
+                      }}
+                    />
+                    <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                      <svg
+                        className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
                   {errors.date && (
                     <p className="text-sm text-red-600 mt-1 flex items-center space-x-1">
                       <svg
@@ -630,38 +605,77 @@ export function CreateEditTripModal({
                 </div>
 
                 {/* Time */}
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <Label
                     htmlFor="unitTime"
                     className="text-sm font-semibold text-gray-700 flex items-center space-x-2"
                   >
-                    <svg
-                      className="w-4 h-4 text-green-600"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
+                    <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <svg
+                        className="w-4 h-4 text-blue-600"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
                     <span>Departure Time</span>
                   </Label>
-                  <Input
-                    id="unitTime"
-                    type="time"
-                    value={formData.unitTime}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        unitTime: e.target.value,
-                      }))
-                    }
-                    className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20"
-                  />
+                  <div className="relative">
+                    <Input
+                      id="unitTime"
+                      type="time"
+                      value={formData.unitTime}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          unitTime: e.target.value,
+                        }))
+                      }
+                      className="h-12 sm:h-14 pl-10 sm:pl-12 pr-4 text-base sm:text-lg border-2 border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 rounded-lg sm:rounded-xl transition-all duration-200 bg-white shadow-sm hover:shadow-md"
+                      style={{
+                        backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3e%3cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'/%3e%3c/svg%3e")`,
+                        backgroundRepeat: "no-repeat",
+                        backgroundPosition: "12px center",
+                        backgroundSize: "18px 18px",
+                      }}
+                    />
+                    <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                      <svg
+                        className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 flex items-center space-x-1">
+                    <svg
+                      className="w-3 h-3"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Default departure time is 6:00 AM</span>
+                  </p>
                 </div>
 
                 {/* Vehicle Seat Count */}
@@ -689,10 +703,7 @@ export function CreateEditTripModal({
                     id="seatCount"
                     type="number"
                     min="1"
-                    max={
-                      vehicles.find((v) => v.id === formData.vehicleId)
-                        ?.seatCount || 50
-                    }
+                    max="50"
                     value={formData.seatCount}
                     onChange={(e) =>
                       setFormData((prev) => ({
@@ -700,7 +711,7 @@ export function CreateEditTripModal({
                         seatCount: parseInt(e.target.value) || 0,
                       }))
                     }
-                    placeholder="Enter number of seats"
+                    placeholder="Enter number of seats (1-50)"
                     className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20"
                   />
                   {errors.seatCount && (
@@ -731,12 +742,7 @@ export function CreateEditTripModal({
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span>
-                      Maximum:{" "}
-                      {vehicles.find((v) => v.id === formData.vehicleId)
-                        ?.seatCount || 0}{" "}
-                      seats
-                    </span>
+                    <span>Maximum: 50 seats</span>
                   </p>
                 </div>
 
@@ -1190,91 +1196,96 @@ export function CreateEditTripModal({
             {/* Enhanced Actions Footer */}
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-r from-gray-50 to-gray-100"></div>
-              <div className="relative flex items-center justify-between pt-8 border-t border-gray-200 -mx-8 px-8 py-6">
-                <div className="flex items-center space-x-2 text-sm text-gray-500">
-                  <svg
-                    className="w-4 h-4"
-                    fill="currentColor"
-                    viewBox="0 0 20 20"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                  <span>All fields marked with * are required</span>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={onClose}
-                    disabled={isSubmitting}
-                    className="px-8 py-3 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200"
-                  >
+              <div className="relative pt-6 sm:pt-8 border-t border-gray-200 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 pb-4 sm:pb-6">
+                {/* Mobile: Stack buttons vertically, Desktop: Horizontal layout */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                  <div className="flex items-center space-x-2 text-xs sm:text-sm text-gray-500 order-2 sm:order-1">
                     <svg
-                      className="w-4 h-4 mr-2"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+                      className="w-3 h-3 sm:w-4 sm:h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
                     >
                       <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                        clipRule="evenodd"
                       />
                     </svg>
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:transform-none disabled:opacity-50"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <svg
-                          className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                        >
-                          <circle
-                            className="opacity-25"
-                            cx="12"
-                            cy="12"
-                            r="10"
+                    <span className="hidden sm:inline">
+                      All fields marked with * are required
+                    </span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 lg:space-x-4 order-1 sm:order-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={onClose}
+                      disabled={isSubmitting}
+                      className="w-full sm:w-auto px-4 sm:px-6 lg:px-8 py-3 border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 text-sm sm:text-base"
+                    >
+                      <svg
+                        className="w-4 h-4 mr-2"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full sm:w-auto px-4 sm:px-6 lg:px-8 py-3 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 disabled:transform-none disabled:opacity-50 text-sm sm:text-base"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <svg
+                            className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                          >
+                            <circle
+                              className="opacity-25"
+                              cx="12"
+                              cy="12"
+                              r="10"
+                              stroke="currentColor"
+                              strokeWidth="4"
+                            ></circle>
+                            <path
+                              className="opacity-75"
+                              fill="currentColor"
+                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            ></path>
+                          </svg>
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <svg
+                            className="w-4 h-4 mr-2"
+                            fill="none"
+                            viewBox="0 0 24 24"
                             stroke="currentColor"
-                            strokeWidth="4"
-                          ></circle>
-                          <path
-                            className="opacity-75"
-                            fill="currentColor"
-                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                          ></path>
-                        </svg>
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <svg
-                          className="w-4 h-4 mr-2"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                          />
-                        </svg>
-                        {mode === "create" ? "Create Trip" : "Update Trip"}
-                      </>
-                    )}
-                  </Button>
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                            />
+                          </svg>
+                          {mode === "create" ? "Create Trip" : "Update Trip"}
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -86,9 +86,6 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
           <h2 className="text-lg lg:text-xl font-medium text-gray-900">
             Active Routes ({routes.length})
           </h2>
-          <p className="text-sm text-gray-600">
-            Manage destinations and pricing for your park
-          </p>
         </div>
         <button
           onClick={() => setShowForm(true)}

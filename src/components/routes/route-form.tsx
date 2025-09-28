@@ -9,11 +9,6 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 
 const routeSchema = z.object({
   destination: z.string().min(1, "Destination is required"),
-  basePrice: z.number().min(1000, "Base price must be at least ₦1,000"),
-  vehicleCapacity: z
-    .number()
-    .min(10, "Capacity must be at least 10 seats")
-    .max(50, "Capacity cannot exceed 50 seats"),
   isActive: z.boolean(),
 });
 
@@ -37,19 +32,13 @@ export function RouteForm({
     register,
     handleSubmit,
     formState: { errors },
-    watch,
   } = useForm<RouteFormData>({
     resolver: zodResolver(routeSchema),
     defaultValues: {
       destination: route?.destination || "",
-      basePrice: route?.basePrice || 4000,
-      vehicleCapacity: route?.vehicleCapacity || 18,
       isActive: route?.isActive ?? true,
     },
   });
-
-  const basePrice = watch("basePrice");
-  const totalPrice = basePrice + 500;
 
   const onSubmit = async (data: RouteFormData) => {
     setLoading(true);
@@ -118,64 +107,6 @@ export function RouteForm({
             {errors.destination && (
               <p className="mt-1 text-sm text-red-600">
                 {errors.destination.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label
-              htmlFor="basePrice"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Base Price (₦)
-            </label>
-            <input
-              {...register("basePrice", { valueAsNumber: true })}
-              type="number"
-              min="1000"
-              step="100"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            />
-            {errors.basePrice && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.basePrice.message}
-              </p>
-            )}
-            <div className="mt-2 p-3 bg-gray-50 rounded-md">
-              <div className="text-sm text-gray-600 space-y-1">
-                <div className="flex justify-between">
-                  <span>Base Price:</span>
-                  <span>₦{basePrice?.toLocaleString() || "0"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Service Charge:</span>
-                  <span>₦500</span>
-                </div>
-                <div className="flex justify-between font-medium text-gray-900 border-t pt-1">
-                  <span>Total Price:</span>
-                  <span>₦{totalPrice?.toLocaleString() || "500"}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <label
-              htmlFor="vehicleCapacity"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Vehicle Capacity (seats)
-            </label>
-            <input
-              {...register("vehicleCapacity", { valueAsNumber: true })}
-              type="number"
-              min="10"
-              max="50"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            />
-            {errors.vehicleCapacity && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.vehicleCapacity.message}
               </p>
             )}
           </div>

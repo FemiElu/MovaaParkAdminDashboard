@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { tripsStore, Vehicle } from "@/lib/trips-store";
+import { tripsStore } from "@/lib/trips-store";
 import { DateTimeSelector } from "../trips/date-time-selector";
 import { EnhancedTripCard } from "../trips/enhanced-trip-card";
 import { RouteTabs } from "../trips/route-tabs";
@@ -10,7 +10,6 @@ import { listRoutes } from "@/lib/routes-store";
 
 interface LiveTripsManagerProps {
   parkId: string;
-  vehicles: Vehicle[];
   drivers: Array<{
     id: string;
     name: string;
@@ -21,11 +20,7 @@ interface LiveTripsManagerProps {
   }>;
 }
 
-export function LiveTripsManager({
-  parkId,
-  vehicles,
-  drivers,
-}: LiveTripsManagerProps) {
+export function LiveTripsManager({ parkId, drivers }: LiveTripsManagerProps) {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -172,7 +167,6 @@ export function LiveTripsManager({
           ) : (
             <div className="grid gap-6">
               {filteredTrips.map((trip) => {
-                const vehicle = vehicles.find((v) => v.id === trip.vehicleId);
                 const driver = drivers.find((d) => d.id === trip.driverId);
                 const bookings = tripsStore.getBookings(trip.id);
                 const parcels = tripsStore.getParcels(trip.id);
@@ -181,7 +175,6 @@ export function LiveTripsManager({
                   <EnhancedTripCard
                     key={trip.id}
                     trip={trip}
-                    vehicle={vehicle}
                     driver={driver}
                     drivers={drivers}
                     bookingsCount={bookings.length}

@@ -38,7 +38,7 @@ export default async function RoutesPage() {
               Routes Management
             </h1>
             <p className="text-sm lg:text-base text-gray-600">
-              Configure destinations, pricing, and vehicle capacity
+              Set destinations, pricing, and vehicle capacity
             </p>
           </div>
           <RoutesManager parkId={session.user.parkId} />

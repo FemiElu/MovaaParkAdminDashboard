@@ -11,8 +11,6 @@ const data: Record<string, RouteConfig[]> = globalThis.__routesData ?? {
       id: "r_lekk_1",
       parkId: "lekki-phase-1-motor-park",
       destination: "Lagos",
-      basePrice: 2500,
-      vehicleCapacity: 14,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -21,8 +19,6 @@ const data: Record<string, RouteConfig[]> = globalThis.__routesData ?? {
       id: "r_lekk_2",
       parkId: "lekki-phase-1-motor-park",
       destination: "Abuja",
-      basePrice: 8000,
-      vehicleCapacity: 14,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -33,8 +29,6 @@ const data: Record<string, RouteConfig[]> = globalThis.__routesData ?? {
       id: "r_ikej_1",
       parkId: "ikeja-motor-park",
       destination: "Ibadan",
-      basePrice: 2000,
-      vehicleCapacity: 14,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -43,8 +37,6 @@ const data: Record<string, RouteConfig[]> = globalThis.__routesData ?? {
       id: "r_ikej_2",
       parkId: "ikeja-motor-park",
       destination: "Ilesa",
-      basePrice: 3500,
-      vehicleCapacity: 14,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -53,8 +45,6 @@ const data: Record<string, RouteConfig[]> = globalThis.__routesData ?? {
       id: "r_ikej_3",
       parkId: "ikeja-motor-park",
       destination: "Ondo",
-      basePrice: 4000,
-      vehicleCapacity: 14,
       isActive: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -65,8 +55,6 @@ const data: Record<string, RouteConfig[]> = globalThis.__routesData ?? {
       id: "r_ajah_1",
       parkId: "ajah-motor-park",
       destination: "Ibadan",
-      basePrice: 2000,
-      vehicleCapacity: 14,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -75,8 +63,6 @@ const data: Record<string, RouteConfig[]> = globalThis.__routesData ?? {
       id: "r_ajah_2",
       parkId: "ajah-motor-park",
       destination: "Lagos Island",
-      basePrice: 1500,
-      vehicleCapacity: 14,
       isActive: true,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -101,7 +87,7 @@ export function getRoute(id: string): RouteConfig | undefined {
 
 export function updateRoute(
   id: string,
-  input: Partial<Pick<RouteConfig, "basePrice">>
+  input: Partial<Pick<RouteConfig, "destination" | "isActive">>
 ): RouteConfig | undefined {
   for (const parkId in data) {
     const list = data[parkId];
@@ -122,8 +108,6 @@ export function updateRoute(
 
 interface CreateRouteInput {
   destination: string;
-  basePrice: number;
-  vehicleCapacity: number;
   isActive: boolean;
   parkId: string;
 }
@@ -135,8 +119,6 @@ export function createRoute(input: CreateRouteInput): RouteConfig {
     id: `route_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     parkId: input.parkId,
     destination: input.destination,
-    basePrice: input.basePrice,
-    vehicleCapacity: input.vehicleCapacity,
     isActive: input.isActive,
     createdAt: now,
     updatedAt: now,
