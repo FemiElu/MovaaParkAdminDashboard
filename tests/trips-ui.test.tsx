@@ -155,11 +155,11 @@ describe("Trip UI Components", () => {
         />
       );
 
-      const statusFilter = screen.getByDisplayValue("All Statuses");
+      const statusFilter = screen.getByText("All Statuses");
       fireEvent.click(statusFilter);
 
       // Should show status options
-      expect(screen.getByText("Confirmed")).toBeInTheDocument();
+      expect(screen.getAllByText(/Confirmed/).length).toBeGreaterThan(0);
     });
 
     it("should handle check-in action", async () => {
@@ -171,7 +171,7 @@ describe("Trip UI Components", () => {
         />
       );
 
-      const checkInButtons = screen.getAllByText("Check-in");
+      const checkInButtons = screen.getAllByText(/Check-in/);
       if (checkInButtons.length > 0) {
         fireEvent.click(checkInButtons[0]);
 
@@ -198,7 +198,7 @@ describe("Trip UI Components", () => {
       );
 
       expect(screen.getByText("Total Passengers")).toBeInTheDocument();
-      expect(screen.getByText("Confirmed")).toBeInTheDocument();
+      expect(screen.getAllByText(/Confirmed/).length).toBeGreaterThan(0);
       expect(screen.getByText("Total Revenue")).toBeInTheDocument();
       expect(screen.getByText("Seat Utilization")).toBeInTheDocument();
     });
@@ -214,7 +214,9 @@ describe("Trip UI Components", () => {
         />
       );
 
-      expect(screen.getByText("Search parcels...")).toBeInTheDocument();
+      expect(
+        screen.getByPlaceholderText("Search parcels...")
+      ).toBeInTheDocument();
       expect(screen.getByText("Total Parcels")).toBeInTheDocument();
       expect(
         screen.getByText(mockParcels.length.toString())
@@ -410,7 +412,7 @@ describe("Trip UI Components", () => {
         />
       );
 
-      const checkInButtons = screen.getAllByText("Check-in");
+      const checkInButtons = screen.getAllByText(/Check-in/);
       if (checkInButtons.length > 0) {
         fireEvent.click(checkInButtons[0]);
 

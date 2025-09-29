@@ -6,7 +6,7 @@
  * by attempting to book the last available seat simultaneously
  */
 
-const fetch = require("node-fetch");
+import fetch from "node-fetch";
 
 const BASE_URL = "http://localhost:3000";
 const TRIP_ID = "trip_2025-08-29_r_ajah_1"; // Trip with 17 confirmed bookings out of 18 seats
@@ -158,6 +158,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { simulateRaceCondition, makeBooking };
-
-
+export default { simulateRaceCondition, makeBooking };

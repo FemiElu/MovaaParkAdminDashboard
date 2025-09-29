@@ -40,7 +40,7 @@ function expiryChip(expiry?: string) {
 
 export default function DriverList({
   drivers,
-  routes,
+  routes = [],
   onRouteBadgeClick,
   showRouteBadges = false,
 }: Props) {

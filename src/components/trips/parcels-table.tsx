@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Trip, Parcel } from "@/lib/trips-store";
+import React, { useState, useMemo } from "react";
+import { Trip, Parcel, Vehicle } from "@/lib/trips-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,9 +26,10 @@ import { PhoneIcon, PrinterIcon } from "@heroicons/react/24/outline";
 interface ParcelsTableProps {
   trip: Trip;
   parcels: Parcel[];
+  vehicle?: Vehicle;
 }
 
-export function ParcelsTable({ trip, parcels }: ParcelsTableProps) {
+export function ParcelsTable({ trip, parcels, vehicle }: ParcelsTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -58,7 +59,9 @@ export function ParcelsTable({ trip, parcels }: ParcelsTableProps) {
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status]}`}
       >
-        {status.replace("-", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+        {(status || "")
+          .replace("-", " ")
+          .replace(/\b\w/g, (l) => l.toUpperCase())}
       </span>
     );
   };
@@ -74,19 +77,36 @@ export function ParcelsTable({ trip, parcels }: ParcelsTableProps) {
     (sum, parcel) => sum + parcel.fee,
     0
   );
-  const capacityUsage = (parcels.length / trip.maxParcelsPerVehicle) * 100;
+  const maxCapacity =
+    vehicle?.maxParcelsPerVehicle ?? trip.maxParcelsPerVehicle;
+  const capacityUsage = (parcels.length / maxCapacity) * 100;
 
   return (
     <div className="space-y-4">
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 flex-1">
+          <label htmlFor="parcel-search" className="sr-only">
+            Search parcels...
+          </label>
           <Input
             placeholder="Search parcels..."
+            id="parcel-search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
+          <select
+            aria-label="Parcel Status Filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="sr-only absolute -m-px h-0 w-0 overflow-hidden p-0 border-0"
+          >
+            <option value="all">All Statuses</option>
+            <option value="assigned">Assigned</option>
+            <option value="in-transit">In Transit</option>
+            <option value="delivered">Delivered</option>
+          </select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Filter by status" />
@@ -140,7 +160,7 @@ export function ParcelsTable({ trip, parcels }: ParcelsTableProps) {
         </div>
         <div className="bg-gray-50 p-3 rounded-lg">
           <p className="text-sm text-gray-600">Max Capacity</p>
-          <p className="text-lg font-semibold">{trip.maxParcelsPerVehicle}</p>
+          <p className="text-lg font-semibold">{maxCapacity}</p>
         </div>
       </div>
 
@@ -180,7 +200,9 @@ export function ParcelsTable({ trip, parcels }: ParcelsTableProps) {
       {/* Mobile list (cards) */}
       <div className="sm:hidden space-y-3">
         {filteredParcels.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">No parcels found</div>
+          <div className="text-center py-8 text-gray-500">
+            No parcels found{searchTerm ? ` for "${searchTerm}"` : ""}
+          </div>
         ) : (
           filteredParcels.map((parcel) => (
             <div key={parcel.id} className="border rounded-lg p-3 bg-white">
@@ -236,7 +258,7 @@ export function ParcelsTable({ trip, parcels }: ParcelsTableProps) {
                   colSpan={7}
                   className="text-center py-8 text-gray-500"
                 >
-                  No parcels found
+                  No parcels found{searchTerm ? ` for "${searchTerm}"` : ""}
                 </TableCell>
               </TableRow>
             ) : (

@@ -17,28 +17,28 @@ export const VehiclePlateSchema = z
   )
   .optional();
 
-// Temporary Nigeria driver license format with checksum:
-// base: 6-12 alnum, then '-' and checksum digit computed by simple mod 10
-export function computeLicenseChecksum(base: string): number {
-  const cleaned = base.toUpperCase().replace(/[^A-Z0-9]/g, "");
-  let sum = 0;
-  for (let i = 0; i < cleaned.length; i++) {
-    const ch = cleaned[i];
-    const code = /[0-9]/.test(ch) ? Number(ch) : ch.charCodeAt(0) - 55; // A=10
-    sum = (sum + code * (i + 1)) % 97; // prime-ish modulus to spread
-  }
-  return sum % 10;
-}
+// Nigeria driver license format: 3 letters, 5 digits, 2 letters, 1 digit
+// Example: AKW06968AA2
+export const NigeriaLicenseRegex = /^[A-Za-z]{3}\d{5}[A-Za-z]{2}\d$/;
 
 export function isValidNigeriaLicenseNumber(license: string): boolean {
-  const m = license.match(/^([A-Z0-9]{6,12})-(\d)$/i);
-  if (!m) return false;
-  const [, base, chk] = m;
-  const expected = computeLicenseChecksum(base);
-  return Number(chk) === expected;
+  return NigeriaLicenseRegex.test(license.toUpperCase());
 }
 
-const LicenseSchema = z.string().min(1, "License number is required");
+const LicenseSchemaAPI = z
+  .string()
+  .min(1, "License number is required")
+  .refine((v) => isValidNigeriaLicenseNumber(v), {
+    message: "Invalid Nigerian license number",
+  });
+
+// UI form: enforce the official Nigerian format
+const LicenseSchemaUI = z
+  .string()
+  .min(1, "License number is required")
+  .refine((v) => isValidNigeriaLicenseNumber(v), {
+    message: "Invalid Nigerian license number",
+  });
 
 export const DriverDocumentSchema = z.object({
   type: z.enum(["DRIVER_LICENSE", "OTHER"]),
@@ -50,7 +50,7 @@ export const DriverDocumentSchema = z.object({
 export const DriverFormSchema = z.object({
   name: z.string().min(2),
   phone: PhoneSchema,
-  licenseNumber: LicenseSchema,
+  licenseNumber: LicenseSchemaUI,
   licenseExpiry: z.string().min(1, "License expiry is required"),
   qualifiedRoute: z.string().min(1), // Single route destination
   isActive: z.boolean(),
@@ -63,16 +63,20 @@ export const DriverFormSchema = z.object({
 export const DriverInputSchema = z.object({
   name: z.string().min(2),
   phone: PhoneSchema,
-  licenseNumber: LicenseSchema,
+  licenseNumber: LicenseSchemaAPI,
   licenseExpiry: z.union([
     z.string().transform((str) => new Date(str)),
     z.date(),
   ]),
-  qualifiedRoute: z.string().min(1), // Single route destination
+  // Accept either single qualifiedRoute or array qualifiedRoutes (by destination names)
+  qualifiedRoute: z.string().min(1).optional(),
+  qualifiedRoutes: z.array(z.string().min(1)).optional(),
   isActive: z.boolean().default(true),
   vehiclePlateNumber: VehiclePlateSchema.optional(),
   address: z.string().optional(),
-  documents: z.array(DriverDocumentSchema).optional(), // metadata only
+  rating: z.number().min(1).max(5).optional(),
+  photo: z.string().url().optional(),
+  documents: z.array(DriverDocumentSchema).optional(),
 });
 
 export type DriverFormData = z.infer<typeof DriverFormSchema>;

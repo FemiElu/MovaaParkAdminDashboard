@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Trip, Booking, Parcel } from "@/lib/trips-store";
 import { PassengerManifestTable } from "./passenger-manifest-table";
 import { ParcelsTable } from "./parcels-table";

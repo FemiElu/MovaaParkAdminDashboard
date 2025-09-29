@@ -19,7 +19,7 @@ export async function POST(
 
     if (!driverId) {
       return NextResponse.json(
-        { success: false, error: "Driver ID is required" },
+        { success: false, error: "driverId is required" },
         { status: 400 }
       );
     }
@@ -31,9 +31,9 @@ export async function POST(
         return NextResponse.json(
           {
             success: false,
-            error: result.error,
+            error: "DRIVER_CONFLICT",
             conflictType: "DRIVER_CONFLICT",
-            conflictingTripId: result.conflictTripId,
+            conflictTripId: result.conflictTripId,
           },
           { status: 409 }
         );

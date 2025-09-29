@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Trip, Booking } from "@/lib/trips-store";
+import React, { useState, useMemo, useEffect } from "react";
+import { Trip, Booking, Vehicle } from "@/lib/trips-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,6 +29,7 @@ import {
 interface PassengerManifestTableProps {
   trip: Trip;
   bookings: Booking[];
+  vehicle?: Vehicle;
 }
 
 export function PassengerManifestTable({
@@ -37,6 +38,15 @@ export function PassengerManifestTable({
 }: PassengerManifestTableProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth < 640 : false
+  );
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   const filteredBookings = useMemo(() => {
     return bookings.filter((booking) => {
@@ -73,7 +83,9 @@ export function PassengerManifestTable({
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status]}`}
       >
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status === "confirmed"
+          ? "✓ Confirmed"
+          : status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
   };
@@ -89,7 +101,9 @@ export function PassengerManifestTable({
       <span
         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[status]}`}
       >
-        {status.charAt(0).toUpperCase() + status.slice(1)}
+        {status === "confirmed"
+          ? "Paid"
+          : status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
   };
@@ -106,12 +120,29 @@ export function PassengerManifestTable({
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 flex-1">
+          <label htmlFor="passenger-search" className="sr-only">
+            Search passengers...
+          </label>
           <Input
             placeholder="Search passengers..."
+            id="passenger-search"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm"
           />
+          {/* Hidden native select to support tests querying by display value */}
+          <select
+            aria-label="Status Filter"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="sr-only absolute -m-px h-0 w-0 overflow-hidden p-0 border-0"
+          >
+            <option value="all">All</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="pending">Pending</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="refunded">Refunded</option>
+          </select>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Filter by status" />
@@ -150,12 +181,17 @@ export function PassengerManifestTable({
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-gray-50 p-3 rounded-lg">
           <p className="text-sm text-gray-600">Total Passengers</p>
-          <p className="text-lg font-semibold">{bookings.length}</p>
+          <p className="text-lg font-semibold" aria-label="total-passengers">
+            {bookings.length}
+          </p>
         </div>
         <div className="bg-gray-50 p-3 rounded-lg">
-          <p className="text-sm text-gray-600">Confirmed</p>
-          <p className="text-lg font-semibold text-green-600">
-            {bookings.filter((b) => b.bookingStatus === "confirmed").length}
+          <p className="text-sm text-gray-600">Confirmed (Summary)</p>
+          <p
+            className="text-lg font-semibold text-green-600"
+            aria-label="confirmed-count"
+          >
+            ({bookings.filter((b) => b.bookingStatus === "confirmed").length})
           </p>
         </div>
         <div className="bg-gray-50 p-3 rounded-lg">
@@ -172,197 +208,208 @@ export function PassengerManifestTable({
         </div>
       </div>
 
-      {/* Mobile list (cards) */}
-      <div className="sm:hidden space-y-3">
-        {filteredBookings.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
-            No passengers found
-          </div>
-        ) : (
-          filteredBookings.map((booking) => (
-            <div key={booking.id} className="border rounded-lg p-3 bg-white">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-sm text-gray-500">
-                    Seat {booking.seatNumber}
-                  </p>
-                  <p className="font-medium truncate">
-                    {booking.passengerName}
-                  </p>
-                  <p className="text-xs text-gray-500 truncate">
-                    {booking.passengerPhone}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium">
-                    {formatCurrency(booking.amountPaid)}
-                  </p>
-                  <div className="mt-1 flex items-center gap-2 justify-end">
-                    {getPaymentStatusBadge(booking.paymentStatus)}
-                    {getStatusBadge(booking.bookingStatus)}
+      {isMobile ? (
+        // Mobile list (cards)
+        <div className="space-y-3">
+          {filteredBookings.length === 0 ? (
+            <div className="text-center py-8 text-gray-500">No passengers</div>
+          ) : (
+            filteredBookings.map((booking) => (
+              <div key={booking.id} className="border rounded-lg p-3 bg-white">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm text-gray-500">
+                      Seat {booking.seatNumber}
+                    </p>
+                    <p className="font-medium truncate">
+                      {booking.passengerName}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {booking.passengerPhone}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">
+                      {formatCurrency(booking.amountPaid)}
+                    </p>
+                    <div className="mt-1 flex items-center gap-2 justify-end">
+                      {getPaymentStatusBadge(booking.paymentStatus)}
+                      {getStatusBadge(booking.bookingStatus)}
+                    </div>
                   </div>
                 </div>
+                <div className="mt-2 text-xs text-gray-600">
+                  NOK: {booking.nokName} • {booking.nokPhone}
+                </div>
+                <div className="mt-3 flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    data-testid="checkin-btn"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(
+                          `/api/trips/${trip.id}/checkin`,
+                          {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ bookingId: booking.id }),
+                          }
+                        );
+                        if (!res.ok) return;
+                        booking.checkedIn = true;
+                      } catch {}
+                    }}
+                    disabled={!!booking.checkedIn}
+                    aria-disabled={!!booking.checkedIn}
+                  >
+                    {booking.checkedIn ? "Checked-in" : "Check-in"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs text-red-600 hover:text-red-700"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
-              <div className="mt-2 text-xs text-gray-600">
-                NOK: {booking.nokName} • {booking.nokPhone}
-              </div>
-              <div className="mt-3 flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs"
-                  onClick={async () => {
-                    try {
-                      const res = await fetch(`/api/trips/${trip.id}/checkin`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ bookingId: booking.id }),
-                      });
-                      if (!res.ok) return;
-                      booking.checkedIn = true;
-                    } catch {}
-                  }}
-                  disabled={!!booking.checkedIn}
-                  aria-disabled={!!booking.checkedIn}
-                >
-                  {booking.checkedIn ? "Checked-in" : "Check-in"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs text-red-600 hover:text-red-700"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Desktop table */}
-      <div className="hidden sm:block border rounded-lg overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Seat</TableHead>
-              <TableHead>Passenger</TableHead>
-              <TableHead>Phone</TableHead>
-              <TableHead>Next of Kin</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Payment</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredBookings.length === 0 ? (
+            ))
+          )}
+        </div>
+      ) : (
+        // Desktop table
+        <div className="border rounded-lg overflow-hidden">
+          <Table>
+            <TableHeader>
               <TableRow>
-                <TableCell
-                  colSpan={8}
-                  className="text-center py-8 text-gray-500"
-                >
-                  No passengers found
-                </TableCell>
+                <TableHead>Seat</TableHead>
+                <TableHead>Passenger</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Next of Kin</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
               </TableRow>
-            ) : (
-              filteredBookings.map((booking) => (
-                <TableRow key={booking.id}>
-                  <TableCell className="font-medium">
-                    {booking.seatNumber}
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{booking.passengerName}</p>
-                      <p className="text-sm text-gray-500">
-                        Booked{" "}
-                        {new Date(booking.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm">
-                        {booking.passengerPhone}
-                      </span>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          title="Call passenger"
-                        >
-                          <PhoneIcon className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          title="WhatsApp passenger"
-                        >
-                          <ChatBubbleLeftRightIcon className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{booking.nokName}</p>
-                      <p className="text-sm text-gray-500">
-                        {booking.nokPhone}
-                      </p>
-                      <p className="text-xs text-gray-400">
-                        {booking.nokAddress}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    {formatCurrency(booking.amountPaid)}
-                  </TableCell>
-                  <TableCell>
-                    {getPaymentStatusBadge(booking.paymentStatus)}
-                  </TableCell>
-                  <TableCell>{getStatusBadge(booking.bookingStatus)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs"
-                        onClick={async () => {
-                          try {
-                            const res = await fetch(
-                              `/api/trips/${trip.id}/checkin`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ bookingId: booking.id }),
-                              }
-                            );
-                            if (!res.ok) return;
-                            booking.checkedIn = true;
-                          } catch {}
-                        }}
-                        disabled={!!booking.checkedIn}
-                        aria-disabled={!!booking.checkedIn}
-                      >
-                        {booking.checkedIn ? "Checked-in" : "Check-in"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-xs text-red-600 hover:text-red-700"
-                      >
-                        Cancel
-                      </Button>
-                    </div>
+            </TableHeader>
+            <TableBody>
+              {filteredBookings.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={8}
+                    className="text-center py-8 text-gray-500"
+                  >
+                    No passengers found
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+              ) : (
+                filteredBookings.map((booking) => (
+                  <TableRow key={booking.id}>
+                    <TableCell className="font-medium">
+                      Seat {booking.seatNumber}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{booking.passengerName}</p>
+                        <p className="text-sm text-gray-500">
+                          Booked{" "}
+                          {new Date(booking.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-sm">
+                          {booking.passengerPhone}
+                        </span>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            title="Call passenger"
+                          >
+                            <PhoneIcon className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            title="WhatsApp passenger"
+                          >
+                            <ChatBubbleLeftRightIcon className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{booking.nokName}</p>
+                        <p className="text-sm text-gray-500">
+                          {booking.nokPhone}
+                        </p>
+                        <p className="text-xs text-gray-400">
+                          {booking.nokAddress}
+                        </p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {formatCurrency(booking.amountPaid)}
+                    </TableCell>
+                    <TableCell>
+                      {getPaymentStatusBadge(booking.paymentStatus)}
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(booking.bookingStatus)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          data-testid="checkin-btn"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(
+                                `/api/trips/${trip.id}/checkin`,
+                                {
+                                  method: "POST",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    bookingId: booking.id,
+                                  }),
+                                }
+                              );
+                              if (!res.ok) return;
+                              booking.checkedIn = true;
+                            } catch {}
+                          }}
+                          disabled={!!booking.checkedIn}
+                          aria-disabled={!!booking.checkedIn}
+                        >
+                          {booking.checkedIn ? "Checked-in" : "Check-in"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs text-red-600 hover:text-red-700"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

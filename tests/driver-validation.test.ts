@@ -2,27 +2,21 @@ import { describe, it, expect } from "vitest";
 
 import {
   isValidNigeriaLicenseNumber,
-  computeLicenseChecksum,
   DriverInputSchema,
   VehiclePlateSchema,
   PhoneSchema,
 } from "@/lib/driver";
 
 describe("Driver validation", () => {
-  it("validates Nigerian-like license number with checksum", () => {
-    // Our temporary scheme: base (alnum 6-12) + '-' + mod10 checksum digit
-    const base = "KDJ7A9";
-    const checksum = computeLicenseChecksum(base);
-    const lic = `${base}-${checksum}`;
-    expect(isValidNigeriaLicenseNumber(lic)).toBe(true);
-    expect(isValidNigeriaLicenseNumber(`${base}-9`)).toBe(false);
-  });
-
-  it("rejects obviously invalid license patterns", () => {
+  it("validates Nigerian license number official format (AAA99999BB9)", () => {
+    expect(isValidNigeriaLicenseNumber("AKW06968AA2")).toBe(true);
+    expect(isValidNigeriaLicenseNumber("ABC123-4")).toBe(false);
     expect(isValidNigeriaLicenseNumber("abc")).toBe(false);
-    expect(isValidNigeriaLicenseNumber("123456")) // missing checksum
+    expect(isValidNigeriaLicenseNumber("AKW06968AA")) // missing last digit
       .toBe(false);
   });
+
+  // Plate validation remains unchanged
 
   it("validates Nigerian vehicle plate format (ABC-123DE)", () => {
     expect(VehiclePlateSchema.safeParse("ABC-123DE").success).toBe(true);
@@ -37,12 +31,10 @@ describe("Driver validation", () => {
   });
 
   it("validates DriverInputSchema with qualifiedRoutes by destination", () => {
-    const base = "ABJ1234";
-    const checksum = computeLicenseChecksum(base);
     const valid = DriverInputSchema.safeParse({
       name: "John Doe",
       phone: "+2348031234567",
-      licenseNumber: `${base}-${checksum}`,
+      licenseNumber: "AKW06968AA2",
       licenseExpiry: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
       qualifiedRoutes: ["Abuja", "Lagos"],
       isActive: true,
@@ -50,18 +42,16 @@ describe("Driver validation", () => {
       vehiclePlateNumber: "ABC-123DE",
       address: "12 Marina, Lagos",
       photo: "https://example.com/photo.jpg",
-      documents: [{ type: "DRIVER_LICENSE", number: `${base}-${checksum}` }],
+      documents: [{ type: "DRIVER_LICENSE", number: "AKW06968AA2" }],
     });
     expect(valid.success).toBe(true);
   });
 
   it("enforces rating 1-5 and warns on expired license", () => {
-    const base = "XYZ7890";
-    const checksum = computeLicenseChecksum(base);
     const parsed = DriverInputSchema.safeParse({
       name: "Jane Doe",
       phone: "0803 000 0000",
-      licenseNumber: `${base}-${checksum}`,
+      licenseNumber: "BAY12345CD6",
       licenseExpiry: new Date(Date.now() - 24 * 60 * 60 * 1000),
       qualifiedRoutes: ["Ibadan"],
       isActive: true,

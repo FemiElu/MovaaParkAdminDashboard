@@ -78,8 +78,8 @@ export async function POST(request: NextRequest) {
     const existingRoutes = listRoutes(parkId) || [];
     const existingRoute = existingRoutes.find((r) => {
       const sameCity = r.destination === data.destination;
-      const sameDestPark = (r as any).destinationPark || undefined;
-      const requestedDestPark = data.destinationPark || undefined;
+      const sameDestPark = r.destinationPark ?? undefined;
+      const requestedDestPark = data.destinationPark ?? undefined;
       return sameCity && sameDestPark === requestedDestPark;
     });
 
