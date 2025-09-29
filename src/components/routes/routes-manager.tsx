@@ -16,6 +16,7 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingRoute, setEditingRoute] = useState<RouteConfig | null>(null);
+  const [query, setQuery] = useState("");
 
   const fetchRoutes = useCallback(async () => {
     try {
@@ -65,9 +66,9 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
   if (loading) {
     return (
       <div className="animate-pulse">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-white rounded-lg shadow p-6">
+            <div key={i} className="bg-white rounded-lg shadow p-4 sm:p-6">
               <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
               <div className="h-3 bg-gray-200 rounded w-1/2 mb-2"></div>
               <div className="h-3 bg-gray-200 rounded w-2/3"></div>
@@ -82,10 +83,21 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
     <div className="space-y-6">
       {/* Header with Add Button */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
+        <div className="w-full sm:w-auto flex items-center justify-between gap-3">
           <h2 className="text-lg lg:text-xl font-medium text-gray-900">
             Active Routes ({routes.length})
           </h2>
+        </div>
+        {/* Search */}
+        <div className="w-full sm:max-w-xs">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search routes..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+            aria-label="Search routes"
+          />
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -123,19 +135,28 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
-          {routes.map((route) => {
-            const driverCount = drivers.filter(
-              (d) => d.qualifiedRoute === route.destination
-            ).length;
-            return (
-              <RouteCard
-                key={route.id}
-                route={route}
-                driverCount={driverCount}
-              />
-            );
-          })}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 sm:gap-4 lg:gap-6">
+          {routes
+            .filter((r) => {
+              if (!query.trim()) return true;
+              const q = query.toLowerCase();
+              return (
+                r.destination.toLowerCase().includes(q) ||
+                (r.destinationPark?.toLowerCase().includes(q) ?? false)
+              );
+            })
+            .map((route) => {
+              const driverCount = drivers.filter(
+                (d) => d.qualifiedRoute === route.destination
+              ).length;
+              return (
+                <RouteCard
+                  key={route.id}
+                  route={route}
+                  driverCount={driverCount}
+                />
+              );
+            })}
         </div>
       )}
 

@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { RouteTabs } from "./route-tabs";
 import { CreateEditTripModal } from "./create-edit-trip-modal";
 import { TripFormData, Trip, RouteConfig } from "@/types";
+// (popover removed)
 
 interface TripsPageClientProps {
   parkId: string;
@@ -33,12 +34,14 @@ export function TripsPageClient({
   // Static departure time
   const departureTime = "06:00";
 
-  // Set today's date after component mounts to avoid hydration mismatch
+  // Set default date (tomorrow) after component mounts to avoid hydration mismatch
   useEffect(() => {
     setIsClient(true);
     if (!selectedDate) {
-      const today = new Date().toISOString().split("T")[0];
-      setSelectedDate(today);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+      setSelectedDate(tomorrowStr);
     }
   }, [selectedDate]);
 
@@ -96,9 +99,19 @@ export function TripsPageClient({
         });
         if (!res.ok) return;
         const json = await res.json();
+        console.log("Trips fetch response:", json);
+        console.log(
+          "Fetching trips for date:",
+          selectedDate,
+          "parkId:",
+          parkId
+        );
+
         if (json?.success && Array.isArray(json.data)) {
+          console.log("Setting trips:", json.data);
           setApiTrips(json.data as Trip[]);
         } else {
+          console.log("No trips found or invalid response");
           setApiTrips([]);
         }
       } catch {
@@ -173,18 +186,46 @@ export function TripsPageClient({
       // Try to parse JSON if available, and merge created trips into view
       try {
         const result = await response.json();
+        console.log("Trip creation response:", result);
+
         if (result && result.success === false) {
           return { success: false, error: result.error };
         }
         const created = result?.data?.trips as Trip[] | undefined;
+        console.log("Created trips:", created);
+        console.log("Selected date:", selectedDate);
+
         if (Array.isArray(created) && created.length > 0) {
-          // Merge only those matching the currently selected date
+          // If the created trips are for a different date/route than the current filters,
+          // switch filters so the user immediately sees what they just created.
+          const first = created[0];
+          if (first?.date && first?.routeId) {
+            if (first.date !== selectedDate) {
+              console.log("Switching UI to created trip date:", first.date);
+              setSelectedDate(first.date);
+            }
+            if (first.routeId !== selectedRouteId) {
+              console.log("Switching UI to created trip route:", first.routeId);
+              setSelectedRouteId(first.routeId);
+            }
+          }
+
+          // Optimistically merge created trips that match the target date shown after potential switch
+          const targetDate = first?.date || selectedDate;
+          const toShow = created.filter((t) => t.date === targetDate);
+          console.log("Trips to merge for target date", targetDate, toShow);
+
           setApiTrips((prev) => {
-            const sameDate = created.filter((t) => t.date === selectedDate);
-            return sameDate.length ? [...prev, ...sameDate] : prev;
+            // Avoid duplicates by id
+            const existingIds = new Set(prev.map((t) => t.id));
+            const additions = toShow.filter((t) => !existingIds.has(t.id));
+            const newTrips = additions.length ? [...prev, ...additions] : prev;
+            console.log("Updated trips list:", newTrips);
+            return newTrips;
           });
         }
-      } catch {
+      } catch (error) {
+        console.log("Error parsing trip creation response:", error);
         // No JSON body – proceed
       }
 
@@ -214,8 +255,8 @@ export function TripsPageClient({
   return (
     <div className="space-y-6">
       {/* Quick Stats - Mobile Responsive */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <div className="bg-white p-3 sm:p-6 rounded-xl border border-gray-200 shadow-sm h-full">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600 truncate">
@@ -242,8 +283,7 @@ export function TripsPageClient({
             </div>
           </div>
         </div>
-
-        <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 shadow-sm">
+        <div className="bg-white p-3 sm:p-6 rounded-xl border border-gray-200 shadow-sm h-full">
           <div className="flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-gray-600 truncate">
@@ -312,7 +352,23 @@ export function TripsPageClient({
                 )}
               </p>
             </div>
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 flex items-center gap-3">
+              {/* Native Date Picker (restored) */}
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="trip-date"
+                  className="text-sm text-gray-700 hidden sm:block"
+                >
+                  Date
+                </label>
+                <input
+                  id="trip-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="h-10 sm:h-10 px-3 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                />
+              </div>
               <button
                 onClick={handleCreateTrip}
                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-200 shadow-sm w-full sm:w-auto"

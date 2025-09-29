@@ -87,7 +87,9 @@ export function getRoute(id: string): RouteConfig | undefined {
 
 export function updateRoute(
   id: string,
-  input: Partial<Pick<RouteConfig, "destination" | "isActive">>
+  input: Partial<
+    Pick<RouteConfig, "destination" | "destinationPark" | "isActive">
+  >
 ): RouteConfig | undefined {
   for (const parkId in data) {
     const list = data[parkId];
@@ -108,6 +110,7 @@ export function updateRoute(
 
 interface CreateRouteInput {
   destination: string;
+  destinationPark?: string;
   isActive: boolean;
   parkId: string;
 }
@@ -119,6 +122,7 @@ export function createRoute(input: CreateRouteInput): RouteConfig {
     id: `route_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     parkId: input.parkId,
     destination: input.destination,
+    destinationPark: input.destinationPark,
     isActive: input.isActive,
     createdAt: now,
     updatedAt: now,

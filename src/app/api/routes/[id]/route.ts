@@ -4,6 +4,7 @@ import { z } from "zod";
 
 const UpdateRouteSchema = z.object({
   destination: z.string().min(1).optional(),
+  destinationPark: z.string().trim().optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -20,11 +21,15 @@ export async function PUT(
         { status: 400 }
       );
     }
-    const { destination, isActive } = parsed.data;
+    const { destination, destinationPark, isActive } = parsed.data;
     const resolvedParams = await params;
     const routeId = resolvedParams.id;
     // Update in-memory store
-    const updated = updateRoute(routeId, { destination, isActive });
+    const updated = updateRoute(routeId, {
+      destination,
+      destinationPark,
+      isActive,
+    });
     if (!updated) {
       return NextResponse.json({ error: "Route not found" }, { status: 404 });
     }

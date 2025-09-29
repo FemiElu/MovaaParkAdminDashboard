@@ -6,6 +6,7 @@ import { listRoutes, createRoute } from "@/lib/routes-store";
 
 const routeSchema = z.object({
   destination: z.string().min(1),
+  destinationPark: z.string().trim().optional(),
   isActive: z.boolean(),
   parkId: z.string().optional(),
 });
@@ -75,9 +76,12 @@ export async function POST(request: NextRequest) {
 
     // Check if route already exists for this park
     const existingRoutes = listRoutes(parkId) || [];
-    const existingRoute = existingRoutes.find(
-      (r) => r.destination === data.destination
-    );
+    const existingRoute = existingRoutes.find((r) => {
+      const sameCity = r.destination === data.destination;
+      const sameDestPark = (r as any).destinationPark || undefined;
+      const requestedDestPark = data.destinationPark || undefined;
+      return sameCity && sameDestPark === requestedDestPark;
+    });
 
     if (existingRoute) {
       return NextResponse.json(

@@ -19,6 +19,7 @@ export interface RouteConfig {
   id: string;
   parkId: string;
   destination: string;
+  destinationPark?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -192,6 +193,7 @@ export interface PaginatedResponse<T> {
 // Form validation types
 export interface RouteFormData {
   destination: string;
+  destinationPark?: string;
   isActive: boolean;
 }
 

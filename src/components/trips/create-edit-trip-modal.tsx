@@ -317,13 +317,16 @@ export function CreateEditTripModal({
     setIsSubmitting(true);
 
     try {
+      console.log("Submitting trip form data:", formData);
       const result = await onSave(formData);
+      console.log("Trip save result:", result);
       if (result.success) {
         onClose();
       } else {
         setErrors({ submit: result.error || "Failed to save trip" });
       }
-    } catch {
+    } catch (error) {
+      console.error("Trip submission error:", error);
       setErrors({ submit: "An unexpected error occurred" });
     } finally {
       setIsSubmitting(false);

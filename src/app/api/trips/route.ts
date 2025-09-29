@@ -17,6 +17,8 @@ export async function GET(request: NextRequest) {
     }
 
     let trips = tripsStore.getTrips(parkId, date || undefined);
+    console.log("API: Getting trips for parkId:", parkId, "date:", date);
+    console.log("API: Found trips:", trips);
 
     // Filter by status if provided
     if (status) {
@@ -92,7 +94,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("API: Creating trip with data:", tripData, "parkId:", parkId);
     const result = tripsStore.createTrip(tripData, parkId);
+    console.log("API: Trip creation result:", result);
 
     if (!result.success) {
       return NextResponse.json(
@@ -101,6 +105,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("API: Returning created trips:", result.trips);
     return NextResponse.json({
       success: true,
       data: {

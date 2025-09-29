@@ -9,6 +9,7 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 
 const routeSchema = z.object({
   destination: z.string().min(1, "Destination is required"),
+  destinationPark: z.string().trim().optional(),
   isActive: z.boolean(),
 });
 
@@ -36,6 +37,7 @@ export function RouteForm({
     resolver: zodResolver(routeSchema),
     defaultValues: {
       destination: route?.destination || "",
+      destinationPark: route?.destinationPark || "",
       isActive: route?.isActive ?? true,
     },
   });
@@ -107,6 +109,26 @@ export function RouteForm({
             {errors.destination && (
               <p className="mt-1 text-sm text-red-600">
                 {errors.destination.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
+              htmlFor="destinationPark"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              Destination Park
+            </label>
+            <input
+              {...register("destinationPark")}
+              type="text"
+              placeholder="e.g., Iwo Road Park"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            />
+            {errors.destinationPark && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.destinationPark.message as string}
               </p>
             )}
           </div>

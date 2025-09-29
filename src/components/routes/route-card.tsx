@@ -13,12 +13,13 @@ export function RouteCard({ route, driverCount = 0 }: RouteCardProps) {
   return (
     <Link
       href={`/routes/${route.id}`}
-      className="block bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-6 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+      className="block bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow p-4 sm:p-6 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
       tabIndex={0}
       aria-label={`View details for route to ${route.destination}`}
     >
-      <div className="flex items-center gap-3 mb-2">
-        <span className="inline-block rounded-full bg-emerald-50 p-2">
+      <div className="flex items-start sm:items-center gap-2 sm:gap-3 mb-2">
+        {/* Hide decorative icon on mobile to avoid truncation; show on sm+ */}
+        <span className="hidden sm:inline-flex rounded-full bg-emerald-50 p-2">
           <svg
             className="w-6 h-6 text-emerald-600"
             fill="none"
@@ -34,13 +35,24 @@ export function RouteCard({ route, driverCount = 0 }: RouteCardProps) {
             />
           </svg>
         </span>
-        <div>
-          <div className="text-lg font-medium text-gray-900">
-            {route.destination}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <div className="text-base sm:text-lg font-medium text-gray-900 truncate">
+              {route.destination}
+            </div>
+            <span
+              className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${
+                route.isActive ? "bg-green-500" : "bg-gray-400"
+              }`}
+              title={route.isActive ? "Active" : "Inactive"}
+              aria-label={route.isActive ? "Active" : "Inactive"}
+            />
           </div>
-          <div className="text-xs font-semibold text-gray-500 mt-0.5">
-            {route.isActive ? "Active" : "Inactive"}
-          </div>
+          {route.destinationPark && (
+            <div className="text-xs text-gray-600 truncate mt-0.5">
+              {route.destinationPark}
+            </div>
+          )}
         </div>
       </div>
       <div className="mt-2 text-sm text-gray-700">

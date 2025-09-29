@@ -44,18 +44,18 @@ export function ConsolidatedBookingStats({
   }, [parkId, today]);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
       {/* Active Bookings */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <div className="flex items-center">
           <div className="flex-shrink-0">
             <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-bold">🚌</span>
             </div>
           </div>
-          <div className="ml-4">
+          <div className="ml-4 min-w-0">
             <p className="text-sm font-medium text-gray-600">Active Bookings</p>
-            <p className="text-2xl font-semibold text-gray-900">
+            <p className="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight">
               {stats.activeBookings}
             </p>
             <p className="text-xs text-gray-500 mt-1">
@@ -65,39 +65,19 @@ export function ConsolidatedBookingStats({
         </div>
       </div>
 
-      {/* Total Passengers */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-              <span className="text-white text-sm font-bold">👥</span>
-            </div>
-          </div>
-          <div className="ml-4">
-            <p className="text-sm font-medium text-gray-600">
-              Total Passengers
-            </p>
-            <p className="text-2xl font-semibold text-gray-900">
-              {stats.totalPassengers}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">Booked for today</p>
-          </div>
-        </div>
-      </div>
-
       {/* Today's Revenue */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white rounded-lg shadow p-4 sm:p-6">
         <div className="flex items-center">
           <div className="flex-shrink-0">
             <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-bold">₦</span>
             </div>
           </div>
-          <div className="ml-4">
+          <div className="ml-4 min-w-0">
             <p className="text-sm font-medium text-gray-600">
               Today&apos;s Revenue
             </p>
-            <p className="text-2xl font-semibold text-gray-900">
+            <p className="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight">
               ₦{stats.todayRevenue.toLocaleString()}
             </p>
             <p className="text-xs text-gray-500 mt-1">
