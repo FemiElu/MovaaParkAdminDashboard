@@ -84,6 +84,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    const effectiveQualifiedRoute =
+      data.qualifiedRoute ?? data.qualifiedRoutes?.[0];
+    if (!effectiveQualifiedRoute) {
+      return NextResponse.json(
+        { error: "Qualified route is required" },
+        { status: 400 }
+      );
+    }
+
     // Create driver in the store
     try {
       const driver = createDriver({
@@ -95,7 +104,7 @@ export async function POST(request: NextRequest) {
           data.licenseExpiry instanceof Date
             ? data.licenseExpiry.toISOString()
             : data.licenseExpiry,
-        qualifiedRoute: data.qualifiedRoute,
+        qualifiedRoute: effectiveQualifiedRoute,
         isActive: data.isActive,
         vehiclePlateNumber: data.vehiclePlateNumber,
         address: data.address,

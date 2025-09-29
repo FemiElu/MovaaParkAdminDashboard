@@ -123,7 +123,7 @@ export default function DriverForm({
             type="text"
             id="licenseNumber"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent"
-            placeholder="ABC123-4"
+            placeholder="AKW06968AA2"
           />
           {errors.licenseNumber && (
             <p className="mt-1 text-sm text-red-600">
