@@ -183,9 +183,7 @@ class DatabaseService {
   }
 
   // Route operations
-  async getRoutesByPark(
-    parkId: string
-  ): Promise<
+  async getRoutesByPark(parkId: string): Promise<
     Array<{
       id: string;
       park_id: string;
@@ -240,6 +238,7 @@ export async function createDriver(input: {
     license_expiry: input.licenseExpiry,
     qualified_route: input.qualifiedRoute,
     is_active: input.isActive,
+    rating: 5, // Default rating for new drivers
     vehicle_plate_number: input.vehiclePlateNumber,
     address: input.address,
   });

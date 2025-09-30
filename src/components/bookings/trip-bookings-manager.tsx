@@ -71,7 +71,6 @@ export function TripBookingsManager({
   }, [parkId, isClient]);
 
   // Get trips filtered by date and route (time is static 06:00)
-  // refreshTrigger dependency forces re-computation when bookings are checked in
   const filteredTrips = useMemo(() => {
     // Don't filter trips until we have a valid date to avoid hydration mismatch
     if (!selectedDate || !isClient) {
@@ -87,14 +86,7 @@ export function TripBookingsManager({
     }
 
     return filtered;
-  }, [
-    parkId,
-    selectedDate,
-    departureTime,
-    selectedRouteId,
-    isClient,
-    refreshTrigger,
-  ]);
+  }, [parkId, selectedDate, departureTime, selectedRouteId, isClient]);
 
   const handleTripClick = (trip: Trip, bookingId?: string) => {
     // Always get fresh trip data with latest booking statuses

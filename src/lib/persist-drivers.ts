@@ -2,6 +2,8 @@
 // This provides better persistence across server restarts
 
 import { Driver } from "@/types";
+import fs from "fs";
+import path from "path";
 
 // Enhanced storage with better persistence
 export function saveDriversToStorage(parkId: string, drivers: Driver[]) {
@@ -22,8 +24,6 @@ export function saveDriversToStorage(parkId: string, drivers: Driver[]) {
           process.env.NODE_ENV === "development"
         ) {
           // In development, we can use a simple file-based approach
-          const fs = require("fs");
-          const path = require("path");
           const dataDir = path.join(process.cwd(), ".next", "cache");
 
           try {
@@ -67,8 +67,6 @@ export function loadDriversFromStorage(parkId: string): Driver[] {
         typeof process !== "undefined" &&
         process.env.NODE_ENV === "development"
       ) {
-        const fs = require("fs");
-        const path = require("path");
         const filePath = path.join(
           process.cwd(),
           ".next",
@@ -159,8 +157,6 @@ export function getDriverWithPersistence(id: string): Driver | null {
   // If not found, try loading from persistent storage
   // This is a fallback for when global storage is not available
   try {
-    const fs = require("fs");
-    const path = require("path");
     const filePath = path.join(
       process.cwd(),
       ".next",
