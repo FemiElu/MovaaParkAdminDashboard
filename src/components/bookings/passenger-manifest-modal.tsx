@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Trip, Booking } from "@/types";
+import { tripsStore } from "@/lib/trips-store";
 import {
   XMarkIcon,
   UserIcon,
@@ -19,6 +20,8 @@ interface PassengerManifestModalProps {
   onClose: () => void;
   onCheckIn: (bookingId: string) => Promise<void>;
   onLocalCheckIn?: (bookingId: string) => void;
+  highlightedBookingId?: string | null;
+  refreshTrigger?: number;
 }
 
 export function PassengerManifestModal({
@@ -27,6 +30,8 @@ export function PassengerManifestModal({
   onClose,
   onCheckIn,
   onLocalCheckIn,
+  highlightedBookingId,
+  refreshTrigger,
 }: PassengerManifestModalProps) {
   const [checkingIn, setCheckingIn] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<
@@ -37,7 +42,29 @@ export function PassengerManifestModal({
   );
   const [failedCheckIns, setFailedCheckIns] = useState<Set<string>>(new Set());
   const [localCheckedIn, setLocalCheckedIn] = useState<Set<string>>(new Set());
+  const [freshBookings, setFreshBookings] = useState<Booking[]>(bookings);
   const { addToast } = useToast();
+  const highlightedRef = React.useRef<HTMLTableRowElement | HTMLDivElement>(
+    null
+  );
+
+  // Update fresh bookings when refreshTrigger changes
+  useEffect(() => {
+    const updatedBookings = tripsStore.getBookings(trip.id);
+    setFreshBookings(updatedBookings);
+  }, [refreshTrigger, trip.id]);
+
+  // Scroll to highlighted booking when modal opens
+  React.useEffect(() => {
+    if (highlightedBookingId && highlightedRef.current) {
+      setTimeout(() => {
+        highlightedRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 100);
+    }
+  }, [highlightedBookingId]);
 
   const handleCheckIn = async (bookingId: string) => {
     // Clear any previous validation errors
@@ -48,7 +75,7 @@ export function PassengerManifestModal({
     });
 
     // Find the booking
-    const booking = bookings.find((b) => b.id === bookingId);
+    const booking = freshBookings.find((b) => b.id === bookingId);
     if (!booking) {
       addToast({
         type: "error",
@@ -222,10 +249,10 @@ export function PassengerManifestModal({
     }
   };
 
-  const checkedInCount = bookings.filter(
+  const checkedInCount = freshBookings.filter(
     (booking) => booking.checkedIn || localCheckedIn.has(booking.id)
   ).length;
-  const pendingCount = bookings.filter(
+  const pendingCount = freshBookings.filter(
     (booking) => !booking.checkedIn && !localCheckedIn.has(booking.id)
   ).length;
 
@@ -276,7 +303,7 @@ export function PassengerManifestModal({
             <div className="flex items-center gap-4 mt-2">
               <span className="text-sm text-gray-600">
                 Total Passengers:{" "}
-                <span className="font-medium">{bookings.length}</span>
+                <span className="font-medium">{freshBookings.length}</span>
               </span>
               <span className="text-sm text-green-600">
                 Checked In:{" "}
@@ -297,7 +324,7 @@ export function PassengerManifestModal({
 
         {/* Content */}
         <div className="overflow-y-auto max-h-[calc(90vh-140px)]">
-          {bookings.length === 0 ? (
+          {freshBookings.length === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <UserIcon className="h-8 w-8 text-gray-400" />
@@ -341,127 +368,144 @@ export function PassengerManifestModal({
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {bookings.map((booking) => (
-                        <tr key={booking.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                                <UserIcon className="h-5 w-5 text-blue-600" />
-                              </div>
-                              <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {booking.passengerName}
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  ID: {booking.id.slice(-8)}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {booking.passengerPhone}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm text-gray-900">
-                              {booking.nokName}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {booking.nokPhone}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              Seat {booking.seatNumber}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              ₦{booking.amountPaid.toLocaleString()}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {getStatusIndicator(booking)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="space-y-2">
-                              {validationErrors[booking.id] && (
-                                <div className="flex items-center space-x-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                                  <ExclamationTriangleIcon className="w-3 h-3" />
-                                  <span>{validationErrors[booking.id]}</span>
-                                </div>
-                              )}
+                      {freshBookings.map((booking) => {
+                        const isHighlighted =
+                          booking.id === highlightedBookingId;
 
-                              {!booking.checkedIn &&
-                              !localCheckedIn.has(booking.id) &&
-                              booking.paymentStatus === "confirmed" ? (
-                                <div className="space-y-1">
-                                  <button
-                                    onClick={() => handleCheckIn(booking.id)}
-                                    disabled={checkingIn === booking.id}
-                                    className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
-                                      failedCheckIns.has(booking.id)
-                                        ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                                        : "bg-green-600 hover:bg-green-700 focus:ring-green-500"
-                                    }`}
-                                  >
-                                    {checkingIn === booking.id ? (
-                                      <>
-                                        <svg
-                                          className="animate-spin -ml-1 mr-2 h-3 w-3 text-white"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                        >
-                                          <circle
-                                            className="opacity-25"
-                                            cx="12"
-                                            cy="12"
-                                            r="10"
-                                            stroke="currentColor"
-                                            strokeWidth="4"
-                                          ></circle>
-                                          <path
-                                            className="opacity-75"
-                                            fill="currentColor"
-                                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                          ></path>
-                                        </svg>
-                                        Checking In...
-                                      </>
-                                    ) : failedCheckIns.has(booking.id) ? (
-                                      <>
-                                        <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
-                                        Retry Check In
-                                      </>
-                                    ) : (
-                                      <>
-                                        <CheckCircleIcon className="w-3 h-3 mr-1" />
-                                        Check In
-                                      </>
+                        return (
+                          <tr
+                            key={booking.id}
+                            ref={
+                              isHighlighted
+                                ? (highlightedRef as React.RefObject<HTMLTableRowElement>)
+                                : null
+                            }
+                            className={
+                              isHighlighted
+                                ? "bg-yellow-50 hover:bg-yellow-100 animate-pulse"
+                                : "hover:bg-gray-50"
+                            }
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                  <UserIcon className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div className="ml-4">
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {booking.passengerName}
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    ID: {booking.id.slice(-8)}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {booking.passengerPhone}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900">
+                                {booking.nokName}
+                              </div>
+                              <div className="text-sm text-gray-500">
+                                {booking.nokPhone}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                Seat {booking.seatNumber}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">
+                                ₦{booking.amountPaid.toLocaleString()}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              {getStatusIndicator(booking)}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="space-y-2">
+                                {validationErrors[booking.id] && (
+                                  <div className="flex items-center space-x-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                                    <ExclamationTriangleIcon className="w-3 h-3" />
+                                    <span>{validationErrors[booking.id]}</span>
+                                  </div>
+                                )}
+
+                                {!booking.checkedIn &&
+                                !localCheckedIn.has(booking.id) &&
+                                booking.paymentStatus === "confirmed" ? (
+                                  <div className="space-y-1">
+                                    <button
+                                      onClick={() => handleCheckIn(booking.id)}
+                                      disabled={checkingIn === booking.id}
+                                      className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                                        failedCheckIns.has(booking.id)
+                                          ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+                                          : "bg-green-600 hover:bg-green-700 focus:ring-green-500"
+                                      }`}
+                                    >
+                                      {checkingIn === booking.id ? (
+                                        <>
+                                          <svg
+                                            className="animate-spin -ml-1 mr-2 h-3 w-3 text-white"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <circle
+                                              className="opacity-25"
+                                              cx="12"
+                                              cy="12"
+                                              r="10"
+                                              stroke="currentColor"
+                                              strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                              className="opacity-75"
+                                              fill="currentColor"
+                                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
+                                          </svg>
+                                          Checking In...
+                                        </>
+                                      ) : failedCheckIns.has(booking.id) ? (
+                                        <>
+                                          <ExclamationTriangleIcon className="w-3 h-3 mr-1" />
+                                          Retry Check In
+                                        </>
+                                      ) : (
+                                        <>
+                                          <CheckCircleIcon className="w-3 h-3 mr-1" />
+                                          Check In
+                                        </>
+                                      )}
+                                    </button>
+
+                                    {retryAttempts[booking.id] > 0 && (
+                                      <div className="text-xs text-orange-600">
+                                        Attempt {retryAttempts[booking.id]}/3
+                                      </div>
                                     )}
-                                  </button>
-
-                                  {retryAttempts[booking.id] > 0 && (
-                                    <div className="text-xs text-orange-600">
-                                      Attempt {retryAttempts[booking.id]}/3
-                                    </div>
-                                  )}
-                                </div>
-                              ) : booking.checkedIn ||
-                                localCheckedIn.has(booking.id) ? (
-                                <span className="text-sm text-green-600 font-medium">
-                                  ✓ Checked In
-                                </span>
-                              ) : (
-                                <span className="text-sm text-gray-500">
-                                  Payment Required
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                                  </div>
+                                ) : booking.checkedIn ||
+                                  localCheckedIn.has(booking.id) ? (
+                                  <span className="text-sm text-green-600 font-medium">
+                                    ✓ Checked In
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-gray-500">
+                                    Payment Required
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -469,117 +513,132 @@ export function PassengerManifestModal({
 
               {/* Mobile Cards */}
               <div className="lg:hidden space-y-4">
-                {bookings.map((booking) => (
-                  <div key={booking.id} className="bg-gray-50 rounded-lg p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center">
-                        <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <UserIcon className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div className="ml-3">
-                          <div className="text-sm font-medium text-gray-900">
-                            {booking.passengerName}
+                {freshBookings.map((booking) => {
+                  const isHighlighted = booking.id === highlightedBookingId;
+                  return (
+                    <div
+                      key={booking.id}
+                      ref={
+                        isHighlighted
+                          ? (highlightedRef as React.RefObject<HTMLDivElement>)
+                          : null
+                      }
+                      className={
+                        isHighlighted
+                          ? "bg-yellow-50 rounded-lg p-4 border-2 border-yellow-400 animate-pulse"
+                          : "bg-gray-50 rounded-lg p-4"
+                      }
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center">
+                          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
+                            <UserIcon className="h-5 w-5 text-blue-600" />
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Seat {booking.seatNumber} • ID:{" "}
-                            {booking.id.slice(-8)}
-                          </div>
-                        </div>
-                      </div>
-                      {getStatusIndicator(booking)}
-                    </div>
-
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center">
-                        <PhoneIcon className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-gray-900">
-                          {booking.passengerPhone}
-                        </span>
-                      </div>
-                      <div className="text-gray-600">
-                        NOK: {booking.nokName} ({booking.nokPhone})
-                      </div>
-                      <div className="text-gray-600">
-                        Amount: ₦{booking.amountPaid.toLocaleString()}
-                      </div>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-                      {validationErrors[booking.id] && (
-                        <div className="flex items-center space-x-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
-                          <ExclamationTriangleIcon className="w-3 h-3" />
-                          <span>{validationErrors[booking.id]}</span>
-                        </div>
-                      )}
-
-                      {!booking.checkedIn &&
-                      !localCheckedIn.has(booking.id) &&
-                      booking.paymentStatus === "confirmed" ? (
-                        <div className="space-y-2">
-                          <button
-                            onClick={() => handleCheckIn(booking.id)}
-                            disabled={checkingIn === booking.id}
-                            className={`w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
-                              failedCheckIns.has(booking.id)
-                                ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
-                                : "bg-green-600 hover:bg-green-700 focus:ring-green-500"
-                            }`}
-                          >
-                            {checkingIn === booking.id ? (
-                              <>
-                                <svg
-                                  className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                >
-                                  <circle
-                                    className="opacity-25"
-                                    cx="12"
-                                    cy="12"
-                                    r="10"
-                                    stroke="currentColor"
-                                    strokeWidth="4"
-                                  ></circle>
-                                  <path
-                                    className="opacity-75"
-                                    fill="currentColor"
-                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                  ></path>
-                                </svg>
-                                Checking In...
-                              </>
-                            ) : failedCheckIns.has(booking.id) ? (
-                              <>
-                                <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
-                                Retry Check In
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircleIcon className="w-4 h-4 mr-2" />
-                                Check In Passenger
-                              </>
-                            )}
-                          </button>
-
-                          {retryAttempts[booking.id] > 0 && (
-                            <div className="text-center text-xs text-orange-600">
-                              Attempt {retryAttempts[booking.id]}/3
+                          <div className="ml-3">
+                            <div className="text-sm font-medium text-gray-900">
+                              {booking.passengerName}
                             </div>
-                          )}
+                            <div className="text-xs text-gray-500">
+                              Seat {booking.seatNumber} • ID:{" "}
+                              {booking.id.slice(-8)}
+                            </div>
+                          </div>
                         </div>
-                      ) : booking.checkedIn ||
-                        localCheckedIn.has(booking.id) ? (
-                        <div className="text-center text-green-600 font-medium">
-                          ✓ Passenger Checked In
+                        {getStatusIndicator(booking)}
+                      </div>
+
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center">
+                          <PhoneIcon className="w-4 h-4 text-gray-400 mr-2" />
+                          <span className="text-gray-900">
+                            {booking.passengerPhone}
+                          </span>
                         </div>
-                      ) : (
-                        <div className="text-center text-gray-500">
-                          Payment Required Before Check-in
+                        <div className="text-gray-600">
+                          NOK: {booking.nokName} ({booking.nokPhone})
                         </div>
-                      )}
+                        <div className="text-gray-600">
+                          Amount: ₦{booking.amountPaid.toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                        {validationErrors[booking.id] && (
+                          <div className="flex items-center space-x-1 text-xs text-red-600 bg-red-50 px-2 py-1 rounded">
+                            <ExclamationTriangleIcon className="w-3 h-3" />
+                            <span>{validationErrors[booking.id]}</span>
+                          </div>
+                        )}
+
+                        {!booking.checkedIn &&
+                        !localCheckedIn.has(booking.id) &&
+                        booking.paymentStatus === "confirmed" ? (
+                          <div className="space-y-2">
+                            <button
+                              onClick={() => handleCheckIn(booking.id)}
+                              disabled={checkingIn === booking.id}
+                              className={`w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+                                failedCheckIns.has(booking.id)
+                                  ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
+                                  : "bg-green-600 hover:bg-green-700 focus:ring-green-500"
+                              }`}
+                            >
+                              {checkingIn === booking.id ? (
+                                <>
+                                  <svg
+                                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <circle
+                                      className="opacity-25"
+                                      cx="12"
+                                      cy="12"
+                                      r="10"
+                                      stroke="currentColor"
+                                      strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    ></path>
+                                  </svg>
+                                  Checking In...
+                                </>
+                              ) : failedCheckIns.has(booking.id) ? (
+                                <>
+                                  <ExclamationTriangleIcon className="w-4 h-4 mr-2" />
+                                  Retry Check In
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircleIcon className="w-4 h-4 mr-2" />
+                                  Check In Passenger
+                                </>
+                              )}
+                            </button>
+
+                            {retryAttempts[booking.id] > 0 && (
+                              <div className="text-center text-xs text-orange-600">
+                                Attempt {retryAttempts[booking.id]}/3
+                              </div>
+                            )}
+                          </div>
+                        ) : booking.checkedIn ||
+                          localCheckedIn.has(booking.id) ? (
+                          <div className="text-center text-green-600 font-medium">
+                            ✓ Passenger Checked In
+                          </div>
+                        ) : (
+                          <div className="text-center text-gray-500">
+                            Payment Required Before Check-in
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

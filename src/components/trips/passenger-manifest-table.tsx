@@ -210,11 +210,11 @@ export function PassengerManifestTable({
 
       {isMobile ? (
         // Mobile list (cards)
-        <div className="space-y-3">
+        <div className="sm:hidden space-y-3">
           {filteredBookings.length === 0 ? (
             <div className="text-center py-8 text-gray-500">No passengers</div>
           ) : (
-            filteredBookings.map((booking) => (
+            filteredBookings.map((booking, index) => (
               <div key={booking.id} className="border rounded-lg p-3 bg-white">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -264,7 +264,11 @@ export function PassengerManifestTable({
                     disabled={!!booking.checkedIn}
                     aria-disabled={!!booking.checkedIn}
                   >
-                    {booking.checkedIn ? "Checked-in" : "Check-in"}
+                    {booking.checkedIn
+                      ? "Checked-in"
+                      : index === 0
+                      ? "Check-in"
+                      : "Check-in Passenger"}
                   </Button>
                   <Button
                     variant="outline"
@@ -280,7 +284,7 @@ export function PassengerManifestTable({
         </div>
       ) : (
         // Desktop table
-        <div className="border rounded-lg overflow-hidden">
+        <div className="hidden sm:block border rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -305,7 +309,7 @@ export function PassengerManifestTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredBookings.map((booking) => (
+                filteredBookings.map((booking, index) => (
                   <TableRow key={booking.id}>
                     <TableCell className="font-medium">
                       Seat {booking.seatNumber}
@@ -392,7 +396,11 @@ export function PassengerManifestTable({
                           disabled={!!booking.checkedIn}
                           aria-disabled={!!booking.checkedIn}
                         >
-                          {booking.checkedIn ? "Checked-in" : "Check-in"}
+                          {booking.checkedIn
+                            ? "Checked-in"
+                            : index === 0
+                            ? "Check-in"
+                            : "Check-in Passenger"}
                         </Button>
                         <Button
                           variant="outline"

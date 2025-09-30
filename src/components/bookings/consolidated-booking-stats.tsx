@@ -1,7 +1,7 @@
 "use client";
 
 import { tripsStore } from "@/lib/trips-store";
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 
 interface ConsolidatedBookingStatsProps {
   parkId: string;
@@ -10,12 +10,28 @@ interface ConsolidatedBookingStatsProps {
 export function ConsolidatedBookingStats({
   parkId,
 }: ConsolidatedBookingStatsProps) {
-  // Get today's date
-  const today = new Date().toISOString().split("T")[0];
+  const [isClient, setIsClient] = useState(false);
   const departureTime = "06:00";
+
+  // Ensure we're on the client side to avoid hydration mismatches
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Calculate stats for today's trips
   const stats = useMemo(() => {
+    // Don't calculate stats until we're on the client side
+    if (!isClient) {
+      return {
+        activeBookings: 0,
+        totalPassengers: 0,
+        todayRevenue: 0,
+      };
+    }
+
+    // Get today's date on the client side
+    const today = new Date().toISOString().split("T")[0];
+
     const todayTrips = tripsStore
       .getTrips(parkId, today)
       .filter((trip) => trip.unitTime === departureTime);
@@ -41,7 +57,7 @@ export function ConsolidatedBookingStats({
       totalPassengers: totalBookings,
       todayRevenue: totalRevenue,
     };
-  }, [parkId, today]);
+  }, [parkId, isClient]);
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-6">
@@ -56,7 +72,11 @@ export function ConsolidatedBookingStats({
           <div className="ml-4 min-w-0">
             <p className="text-sm font-medium text-gray-600">Active Bookings</p>
             <p className="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight">
-              {stats.activeBookings}
+              {!isClient ? (
+                <span className="animate-pulse bg-gray-200 h-6 w-8 rounded"></span>
+              ) : (
+                stats.activeBookings
+              )}
             </p>
             <p className="text-xs text-gray-500 mt-1">
               Trips scheduled for today
@@ -78,7 +98,11 @@ export function ConsolidatedBookingStats({
               Today&apos;s Revenue
             </p>
             <p className="text-xl sm:text-2xl font-semibold text-gray-900 leading-tight">
-              ₦{stats.todayRevenue.toLocaleString()}
+              {!isClient ? (
+                <span className="animate-pulse bg-gray-200 h-6 w-16 rounded"></span>
+              ) : (
+                `₦${stats.todayRevenue.toLocaleString()}`
+              )}
             </p>
             <p className="text-xs text-gray-500 mt-1">
               From today&apos;s trips

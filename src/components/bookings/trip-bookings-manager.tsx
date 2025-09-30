@@ -2,13 +2,12 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { tripsStore } from "@/lib/trips-store";
-import { listRoutes } from "@/lib/routes-store";
 import { RouteTabs } from "../trips/route-tabs";
 import { DateTimeSelector } from "../trips/date-time-selector";
 import { TripBookingCard } from "./trip-booking-card";
 import { PassengerManifestModal } from "./passenger-manifest-modal";
 import { BookingSearchModal } from "./booking-search-modal";
-import { Trip } from "@/types";
+import { Trip, RouteConfig } from "@/types";
 
 interface TripBookingsManagerProps {
   parkId: string;
@@ -32,6 +31,11 @@ export function TripBookingsManager({
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [localCheckedIn, setLocalCheckedIn] = useState<Set<string>>(new Set());
+  const [highlightedBookingId, setHighlightedBookingId] = useState<
+    string | null
+  >(null);
+  const [routes, setRoutes] = useState<RouteConfig[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   // Static departure time
   const departureTime = "06:00";
@@ -45,10 +49,29 @@ export function TripBookingsManager({
     }
   }, [selectedDate]);
 
-  // Get routes for the current park
-  const routes = useMemo(() => listRoutes(parkId) || [], [parkId]);
+  // Fetch routes from API to get the latest data
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      try {
+        const response = await fetch(`/api/routes?parkId=${parkId}`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setRoutes(result.data || []);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch routes:", error);
+      }
+    };
+
+    if (isClient) {
+      fetchRoutes();
+    }
+  }, [parkId, isClient]);
 
   // Get trips filtered by date and route (time is static 06:00)
+  // refreshTrigger dependency forces re-computation when bookings are checked in
   const filteredTrips = useMemo(() => {
     // Don't filter trips until we have a valid date to avoid hydration mismatch
     if (!selectedDate || !isClient) {
@@ -64,14 +87,30 @@ export function TripBookingsManager({
     }
 
     return filtered;
-  }, [parkId, selectedDate, departureTime, selectedRouteId, isClient]);
+  }, [
+    parkId,
+    selectedDate,
+    departureTime,
+    selectedRouteId,
+    isClient,
+    refreshTrigger,
+  ]);
 
-  const handleTripClick = (trip: Trip) => {
-    setSelectedTrip(trip);
+  const handleTripClick = (trip: Trip, bookingId?: string) => {
+    // Always get fresh trip data with latest booking statuses
+    const freshTrip = tripsStore.getTrip(trip.id);
+    setSelectedTrip(freshTrip || trip);
+
+    // Always set highlighted booking ID (null if not provided)
+    setHighlightedBookingId(bookingId || null);
+
+    // Force refresh of trips data to get updated booking statuses
+    setRefreshTrigger((prev) => prev + 1);
   };
 
   const handleCloseManifest = () => {
     setSelectedTrip(null);
+    setHighlightedBookingId(null);
   };
 
   const handleCheckIn = async (bookingId: string) => {
@@ -88,7 +127,10 @@ export function TripBookingsManager({
         // Add to local checked-in set for immediate UI update
         setLocalCheckedIn((prev) => new Set(prev).add(bookingId));
 
-        // Refresh the trip data
+        // Force refresh of trips data to get updated booking statuses
+        setRefreshTrigger((prev) => prev + 1);
+
+        // Refresh the currently selected trip with latest data
         const updatedTrip = tripsStore.getTrip(selectedTrip.id);
         if (updatedTrip) {
           setSelectedTrip(updatedTrip);
@@ -114,12 +156,12 @@ export function TripBookingsManager({
             Passenger Check-In
           </h2>
           <p className="text-gray-600 mt-1">
-            Manage passenger check-ins for today&apos;s trips
+            Manage passenger check-ins for today
           </p>
         </div>
         <button
           onClick={() => setShowSearchModal(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 shadow-sm"
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-700 hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 transition-colors duration-200 shadow-sm"
         >
           <svg
             className="w-4 h-4 mr-2"
@@ -257,6 +299,8 @@ export function TripBookingsManager({
           onLocalCheckIn={(bookingId) => {
             setLocalCheckedIn((prev) => new Set(prev).add(bookingId));
           }}
+          highlightedBookingId={highlightedBookingId}
+          refreshTrigger={refreshTrigger}
         />
       )}
 
@@ -267,10 +311,10 @@ export function TripBookingsManager({
           selectedDate={selectedDate}
           onClose={() => setShowSearchModal(false)}
           onBookingFound={(booking) => {
-            // Find the trip for this booking and open manifest
+            // Find the trip for this booking and open manifest with highlighted passenger
             const trip = tripsStore.getTrip(booking.tripId);
             if (trip) {
-              setSelectedTrip(trip);
+              handleTripClick(trip, booking.id);
               setShowSearchModal(false);
             }
           }}

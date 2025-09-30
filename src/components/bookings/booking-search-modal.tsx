@@ -171,7 +171,7 @@ export function BookingSearchModal({
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyPress={(e) => e.key === "Enter" && handleSearch()}
                     placeholder="Search by Ticket ID, name or phone … or tap to scan QR"
-                    className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
                   />
                   <MagnifyingGlassIcon className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
                 </div>
@@ -180,7 +180,7 @@ export function BookingSearchModal({
               <button
                 onClick={handleSearch}
                 disabled={isSearching || !searchQuery.trim()}
-                className="w-full inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full inline-flex items-center justify-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-700 hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isSearching ? (
                   <>
@@ -215,8 +215,8 @@ export function BookingSearchModal({
             </div>
           ) : (
             <div className="text-center py-8">
-              <div className="mx-auto h-16 w-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                <QrCodeIcon className="h-8 w-8 text-blue-600" />
+              <div className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+                <QrCodeIcon className="h-8 w-8 text-green-700" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
                 QR Code Scanner
@@ -227,7 +227,7 @@ export function BookingSearchModal({
               </p>
               <button
                 onClick={handleQRScan}
-                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-green-700 hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 transition-colors"
               >
                 <QrCodeIcon className="w-5 h-5 mr-2" />
                 Start QR Scan
@@ -263,14 +263,14 @@ export function BookingSearchModal({
                     <div
                       key={booking.id}
                       onClick={() => handleBookingSelect(booking)}
-                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 cursor-pointer transition-colors"
+                      className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <UserIcon className="h-5 w-5 text-blue-600" />
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center flex-1">
+                          <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <UserIcon className="h-5 w-5 text-green-700" />
                           </div>
-                          <div className="ml-3">
+                          <div className="ml-3 flex-1 min-w-0">
                             <div className="text-sm font-medium text-gray-900">
                               {info.passenger}
                             </div>
@@ -279,24 +279,46 @@ export function BookingSearchModal({
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right ml-3">
                           <div className="text-sm font-medium text-gray-900">
                             ₦{info.amount.toLocaleString()}
                           </div>
                           <div
-                            className={`text-xs ${
+                            className={`text-xs font-medium ${
                               info.status === "Checked In"
                                 ? "text-green-600"
-                                : "text-blue-600"
+                                : "text-orange-600"
                             }`}
                           >
                             {info.status}
                           </div>
                         </div>
                       </div>
-                      <div className="mt-2 flex items-center text-xs text-gray-500">
-                        <PhoneIcon className="w-3 h-3 mr-1" />
-                        {info.phone}
+                      <div className="flex items-center justify-between text-xs text-gray-500 border-t pt-2">
+                        <div className="flex items-center">
+                          <PhoneIcon className="w-3 h-3 mr-1" />
+                          {info.phone}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          ID: {booking.id.slice(-8)}
+                        </div>
+                      </div>
+
+                      {/* Status Badge - No separate buttons, click whole card */}
+                      <div className="mt-3 pt-3 border-t">
+                        {booking.checkedIn ? (
+                          <div className="text-center py-2 text-sm font-medium text-green-600 bg-green-50 rounded-md">
+                            ✓ Already Checked In
+                          </div>
+                        ) : booking.paymentStatus === "confirmed" ? (
+                          <div className="text-center py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-md">
+                            Click to view and check in
+                          </div>
+                        ) : (
+                          <div className="text-center py-2 text-sm text-gray-500 bg-gray-50 rounded-md">
+                            Payment Required - View Details
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -310,7 +332,7 @@ export function BookingSearchModal({
         <div className="flex justify-end p-6 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 transition-colors"
           >
             Close
           </button>

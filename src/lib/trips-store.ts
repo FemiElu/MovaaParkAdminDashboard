@@ -198,6 +198,17 @@ class TripsStore {
     this.seedMockData();
   }
 
+  // Method to reset store data (for development)
+  resetStore() {
+    this.bookings = [];
+    this.trips = [];
+    this.vehicles = [];
+    this.parcels = [];
+    this.auditLogs = [];
+    this.adjustments = [];
+    this.seedMockData();
+  }
+
   private loadFromGlobal() {
     if (typeof globalThis !== "undefined" && globalThis.__tripsData) {
       const data = globalThis.__tripsData;
@@ -356,6 +367,7 @@ class TripsStore {
           amountPaid: 2000,
           paymentStatus: "confirmed",
           bookingStatus: "confirmed",
+          checkedIn: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -396,6 +408,7 @@ class TripsStore {
           amountPaid: 5000, // Default price since routes no longer have basePrice
           paymentStatus: "confirmed",
           bookingStatus: "confirmed",
+          checkedIn: false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         };
@@ -691,8 +704,10 @@ class TripsStore {
     ) {
       return { success: false, reason: "Booking not active" };
     }
+
     booking.checkedIn = true;
     booking.updatedAt = new Date().toISOString();
+
     this.logAudit("checked_in", "Booking", bookingId, { tripId });
     this.persistToGlobal();
     return { success: true };
