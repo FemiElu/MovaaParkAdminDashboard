@@ -158,8 +158,12 @@ export function TripsPageClient({
     tripData: TripFormData
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch("/api/trips", {
-        method: "POST",
+      const isEditing = editingTrip !== null;
+      const url = isEditing ? `/api/trips/${editingTrip.id}` : "/api/trips";
+      const method = isEditing ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -171,7 +175,9 @@ export function TripsPageClient({
 
       // If server returns an empty body (some environments), still treat 2xx as success
       if (!response.ok) {
-        let errorMessage = "Failed to save trip";
+        let errorMessage = isEditing
+          ? "Failed to update trip"
+          : "Failed to create trip";
         try {
           const maybeJson = await response.json();
           errorMessage = maybeJson?.error || errorMessage;
@@ -183,53 +189,71 @@ export function TripsPageClient({
         return { success: false, error: errorMessage };
       }
 
-      // Try to parse JSON if available, and merge created trips into view
-      try {
-        const result = await response.json();
-        console.log("Trip creation response:", result);
-
-        if (result && result.success === false) {
-          return { success: false, error: result.error };
-        }
-        const created = result?.data?.trips as Trip[] | undefined;
-        console.log("Created trips:", created);
-        console.log("Selected date:", selectedDate);
-
-        if (Array.isArray(created) && created.length > 0) {
-          // If the created trips are for a different date/route than the current filters,
-          // switch filters so the user immediately sees what they just created.
-          const first = created[0];
-          if (first?.date && first?.routeId) {
-            if (first.date !== selectedDate) {
-              console.log("Switching UI to created trip date:", first.date);
-              setSelectedDate(first.date);
-            }
-            if (first.routeId !== selectedRouteId) {
-              console.log("Switching UI to created trip route:", first.routeId);
-              setSelectedRouteId(first.routeId);
-            }
+      // Handle response based on whether we're creating or editing
+      if (isEditing) {
+        // For editing, just refresh the trips list
+        console.log("Trip updated successfully");
+        // Trigger a refetch of trips to show updated data
+        const params = new URLSearchParams({ parkId, date: selectedDate });
+        const res = await fetch(`/api/trips?${params.toString()}`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.data)) {
+            setApiTrips(json.data as Trip[]);
           }
-
-          // Optimistically merge created trips that match the target date shown after potential switch
-          const targetDate = first?.date || selectedDate;
-          const toShow = created.filter((t) => t.date === targetDate);
-          console.log("Trips to merge for target date", targetDate, toShow);
-
-          setApiTrips((prev) => {
-            // Avoid duplicates by id
-            const existingIds = new Set(prev.map((t) => t.id));
-            const additions = toShow.filter((t) => !existingIds.has(t.id));
-            const newTrips = additions.length ? [...prev, ...additions] : prev;
-            console.log("Updated trips list:", newTrips);
-            return newTrips;
-          });
         }
-      } catch (error) {
-        console.log("Error parsing trip creation response:", error);
-        // No JSON body – proceed
-      }
+      } else {
+        // For creating, handle the response as before
+        try {
+          const result = await response.json();
+          console.log("Trip creation response:", result);
 
-      // No hard reload; data is merged above and useEffect will refetch
+          if (result && result.success === false) {
+            return { success: false, error: result.error };
+          }
+          const created = result?.data?.trips as Trip[] | undefined;
+          console.log("Created trips:", created);
+          console.log("Selected date:", selectedDate);
+
+          if (Array.isArray(created) && created.length > 0) {
+            // If the created trips are for a different date/route than the current filters,
+            // switch filters so the user immediately sees what they just created.
+            const first = created[0];
+            if (first?.date && first?.routeId) {
+              if (first.date !== selectedDate) {
+                console.log("Switching UI to created trip date:", first.date);
+                setSelectedDate(first.date);
+              }
+              if (first.routeId !== selectedRouteId) {
+                console.log(
+                  "Switching UI to created trip route:",
+                  first.routeId
+                );
+                setSelectedRouteId(first.routeId);
+              }
+            }
+
+            // Optimistically merge created trips that match the target date shown after potential switch
+            const targetDate = first?.date || selectedDate;
+            const toShow = created.filter((t) => t.date === targetDate);
+            console.log("Trips to merge for target date", targetDate, toShow);
+
+            setApiTrips((prev) => {
+              // Avoid duplicates by id
+              const existingIds = new Set(prev.map((t) => t.id));
+              const additions = toShow.filter((t) => !existingIds.has(t.id));
+              const newTrips = additions.length
+                ? [...prev, ...additions]
+                : prev;
+              console.log("Updated trips list:", newTrips);
+              return newTrips;
+            });
+          }
+        } catch (error) {
+          console.log("Error parsing trip creation response:", error);
+          // No JSON body – proceed
+        }
+      }
 
       return { success: true };
     } catch {
