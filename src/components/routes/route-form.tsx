@@ -5,11 +5,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { RouteConfig, RouteFormData } from "@/types";
+import { routeApiService } from "@/lib/route-api-service";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 
 const routeSchema = z.object({
   destination: z.string().min(1, "Destination is required"),
   destinationPark: z.string().trim().optional(),
+  from_state: z.string().min(1, "From state is required"),
   isActive: z.boolean(),
 });
 
@@ -38,6 +40,7 @@ export function RouteForm({
     defaultValues: {
       destination: route?.destination || "",
       destinationPark: route?.destinationPark || "",
+      from_state: "Lagos", // Default from state
       isActive: route?.isActive ?? true,
     },
   });
@@ -47,21 +50,45 @@ export function RouteForm({
     setError("");
 
     try {
-      const url = route ? `/api/routes/${route.id}` : "/api/routes";
-      const method = route ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, parkId }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        onSuccess(result.data);
+      if (route) {
+        // Update existing route - using mock API for now since PUT endpoint not provided
+        const response = await fetch(`/api/routes/${route.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, parkId }),
+        });
+        const result = await response.json();
+        if (response.ok) {
+          onSuccess(result.data);
+        } else {
+          setError(result.error || "Failed to update route");
+        }
       } else {
-        setError(result.error || "Failed to save route");
+        // Create new route using real API
+        const routeData = {
+          from_state: data.from_state,
+          to_state: data.destinationPark || "Unknown",
+          to_city: data.destination,
+          bus_stop: `${data.destination} Park`, // Default bus stop
+        };
+
+        const response = await routeApiService.createRoute(routeData);
+        if (response.success && response.data) {
+          // Convert API Route format to RouteConfig format
+          const convertedRoute = {
+            id: response.data.id,
+            parkId: parkId || "default-park",
+            destination: response.data.to_city,
+            destinationPark: response.data.to_state,
+            from_state: response.data.from_state,
+            isActive: true,
+            createdAt: response.data.created_at || new Date().toISOString(),
+            updatedAt: response.data.updated_at || new Date().toISOString(),
+          };
+          onSuccess(convertedRoute);
+        } else {
+          setError(response.error || "Failed to create route");
+        }
       }
     } catch (error) {
       console.error("Error saving route:", error);
@@ -95,10 +122,39 @@ export function RouteForm({
 
           <div>
             <label
+              htmlFor="from_state"
+              className="block text-sm font-medium text-gray-700 mb-2"
+            >
+              From State *
+            </label>
+            <select
+              {...register("from_state")}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="Lagos">Lagos</option>
+              <option value="Abuja">Abuja (FCT)</option>
+              <option value="Kano">Kano</option>
+              <option value="Rivers">Rivers</option>
+              <option value="Oyo">Oyo</option>
+              <option value="Osun">Osun</option>
+              <option value="Ondo">Ondo</option>
+              <option value="Ekiti">Ekiti</option>
+              <option value="Kwara">Kwara</option>
+              <option value="Ogun">Ogun</option>
+            </select>
+            {errors.from_state && (
+              <p className="mt-1 text-sm text-red-600">
+                {errors.from_state.message}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label
               htmlFor="destination"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Destination
+              Destination *
             </label>
             <input
               {...register("destination")}

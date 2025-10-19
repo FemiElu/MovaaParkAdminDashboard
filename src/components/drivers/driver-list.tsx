@@ -10,34 +10,6 @@ type Props = {
   showRouteBadges?: boolean; // Show badges when "All" is selected
 };
 
-function expiryChip(expiry?: string) {
-  if (!expiry)
-    return (
-      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-gray-100 text-gray-700">
-        Unknown
-      </span>
-    );
-  const msLeft = new Date(expiry).getTime() - Date.now();
-  if (msLeft < 0)
-    return (
-      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-red-100 text-red-700">
-        Expired
-      </span>
-    );
-  const days = Math.ceil(msLeft / 86400000);
-  if (days <= 7)
-    return (
-      <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-amber-100 text-amber-800">
-        Expiring soon
-      </span>
-    );
-  return (
-    <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-emerald-100 text-emerald-700">
-      Valid
-    </span>
-  );
-}
-
 export default function DriverList({
   drivers,
   routes = [],
@@ -86,7 +58,7 @@ export default function DriverList({
                         {d.qualifiedRoute}
                       </span>
                     )}
-                    {expiryChip(d.licenseExpiry)}
+                    {/* {expiryChip(d.licenseExpiry)} */}
                   </div>
                 </div>
               </div>

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { RouteConfig, Driver } from "@/types";
 import { RouteCard } from "./route-card";
 import { RouteForm } from "./route-form";
+import { routeApiService } from "@/lib/route-api-service";
+import { loadDriversFromStorage } from "@/lib/client-driver-storage";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
 interface RoutesManagerProps {
@@ -20,10 +22,20 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
 
   const fetchRoutes = useCallback(async () => {
     try {
-      const response = await fetch(`/api/routes?parkId=${parkId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setRoutes(data.data || []);
+      const response = await routeApiService.getAllRoutes();
+      if (response.success) {
+        // Convert API Route format to RouteConfig format
+        const convertedRoutes = response.data.map((route) => ({
+          id: route.id,
+          parkId: parkId || "default-park",
+          destination: route.to_city,
+          destinationPark: route.to_state,
+          from_state: route.from_state,
+          isActive: true,
+          createdAt: route.created_at || new Date().toISOString(),
+          updatedAt: route.updated_at || new Date().toISOString(),
+        }));
+        setRoutes(convertedRoutes);
       }
     } catch (error) {
       console.error("Failed to fetch routes:", error);
@@ -34,13 +46,19 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
 
   const fetchDrivers = useCallback(async () => {
     try {
-      const response = await fetch(`/api/drivers?parkId=${parkId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setDrivers(Array.isArray(data.data?.data) ? data.data.data : []);
-      }
+      // Use local storage drivers that have proper route associations
+      const localDrivers = loadDriversFromStorage(parkId || "default-park");
+      setDrivers(localDrivers);
+      console.log(`Loaded ${localDrivers.length} drivers from local storage`);
+      console.log(
+        "Local drivers:",
+        localDrivers.map((d) => ({
+          name: d.name,
+          qualifiedRoute: d.qualifiedRoute,
+        }))
+      );
     } catch (error) {
-      console.error("Failed to fetch drivers:", error);
+      console.error("Failed to load drivers from storage:", error);
     }
   }, [parkId]);
 
@@ -50,6 +68,29 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
       fetchDrivers();
     }
   }, [parkId, fetchRoutes, fetchDrivers]);
+
+  // Refresh drivers when the component mounts or when localStorage changes
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === `drivers_${parkId}`) {
+        fetchDrivers();
+      }
+    };
+
+    // Listen for localStorage changes
+    window.addEventListener("storage", handleStorageChange);
+
+    // Also refresh on focus (in case data was updated in another tab)
+    const handleFocus = () => {
+      fetchDrivers();
+    };
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [parkId, fetchDrivers]);
 
   const handleRouteAdded = (newRoute: RouteConfig) => {
     setRoutes((prev) => [...prev, newRoute]);
@@ -61,6 +102,42 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
       prev.map((r) => (r.id === updatedRoute.id ? updatedRoute : r))
     );
     setEditingRoute(null);
+  };
+
+  const handleRouteDeleted = async (routeId: string) => {
+    try {
+      // Prevent deletion if linked (drivers/trips). We at least check drivers here.
+      const route = routes.find((r) => r.id === routeId);
+      const linkedDriverCount = drivers.filter((d) => {
+        if (!route) return false;
+        return (
+          d.qualifiedRoute === route.destination ||
+          d.qualifiedRoute
+            ?.toLowerCase()
+            .includes(route.destination.toLowerCase()) ||
+          d.qualifiedRoute
+            ?.toLowerCase()
+            .includes(route.destinationPark?.toLowerCase() || "")
+        );
+      }).length;
+      if (linkedDriverCount > 0) {
+        alert(
+          "This route has linked drivers and cannot be deleted. Remove all links first."
+        );
+        return;
+      }
+
+      const resp = await routeApiService.deleteRoute(routeId);
+      if (resp.success) {
+        setRoutes((prev) => prev.filter((r) => r.id !== routeId));
+      } else {
+        console.error("Failed to delete route:", resp);
+        alert(resp.error || "Failed to delete route. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error deleting route:", error);
+      alert("Failed to delete route. Please try again.");
+    }
   };
 
   if (loading) {
@@ -146,14 +223,40 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
               );
             })
             .map((route) => {
-              const driverCount = drivers.filter(
-                (d) => d.qualifiedRoute === route.destination
-              ).length;
+              // Calculate driver count by matching qualified routes with route destination
+              const driverCount = drivers.filter((d) => {
+                // Check if driver's qualified route matches the route destination
+                // The qualifiedRoute should contain the route destination name
+                return (
+                  d.qualifiedRoute === route.destination ||
+                  d.qualifiedRoute
+                    ?.toLowerCase()
+                    .includes(route.destination.toLowerCase()) ||
+                  d.qualifiedRoute
+                    ?.toLowerCase()
+                    .includes(route.destinationPark?.toLowerCase() || "")
+                );
+              }).length;
+
+              console.log(
+                `Route ${route.destination} (${route.destinationPark}) has ${driverCount} drivers`
+              );
+              console.log(
+                `Available drivers:`,
+                drivers.map((d) => ({
+                  name: d.name,
+                  qualifiedRoute: d.qualifiedRoute,
+                }))
+              );
+
+              const isDeletable = driverCount === 0; // Extend later with trips check
               return (
                 <RouteCard
                   key={route.id}
                   route={route}
                   driverCount={driverCount}
+                  isDeletable={isDeletable}
+                  onDelete={handleRouteDeleted}
                 />
               );
             })}

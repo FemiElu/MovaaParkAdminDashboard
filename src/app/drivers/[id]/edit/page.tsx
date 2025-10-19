@@ -38,9 +38,9 @@ export default async function EditDriverPage({ params }: EditDriverPageProps) {
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardSidebar />
-      <MobileHeader user={session.user} />
+      <MobileHeader />
       <div className="lg:pl-64">
-        <DashboardHeader user={session.user} />
+        <DashboardHeader />
         <main className="p-4 lg:p-6 pb-20 lg:pb-6">
           <div className="max-w-4xl mx-auto">
             {/* Breadcrumb Navigation */}

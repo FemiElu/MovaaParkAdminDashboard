@@ -52,10 +52,16 @@ export const DriverFormSchema = z.object({
   phone: PhoneSchema,
   licenseNumber: LicenseSchemaUI,
   licenseExpiry: z.string().min(1, "License expiry is required"),
-  qualifiedRoute: z.string().min(1), // Single route destination
+  dob: z.string().min(1, "Date of birth is required"), // New
+  qualifiedRoute: z.string().min(1), // routeId
   isActive: z.boolean(),
   vehiclePlateNumber: VehiclePlateSchema.optional(),
   address: z.string().optional(),
+  nin: z.string().min(1, "NIN (National ID Number) is required"), // Separate NIN
+  route_id: z.string().min(1), // For backend submission
+  driversLicenseFile: z.instanceof(File, {
+    message: "Driver's license file is required",
+  }), // File upload
   documents: z.array(DriverDocumentSchema).optional(), // metadata only
 });
 

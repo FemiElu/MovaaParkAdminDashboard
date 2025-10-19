@@ -1,23 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { signIn, getSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
+import { formatNigerianPhoneNumber } from "@/lib/phone-utils";
+import { AuthGuard } from "@/components/auth/auth-guard";
 
 const loginSchema = z.object({
-  email: z.string().email("Valid email required"),
+  phone_number: z.string().min(10, "Valid phone number required"),
   password: z.string().min(1, "Password required"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const { login } = useAuth();
 
   const {
     register,
@@ -32,27 +36,20 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
+      // Use custom auth service directly (not NextAuth)
+      const success = await login(
+        formatNigerianPhoneNumber(data.phone_number),
+        data.password
+      );
 
-      if (result?.error) {
-        setError("Invalid email or password");
+      if (success) {
+        // Redirect to dashboard
+        router.push("/");
       } else {
-        // Check session for park admin access
-        const session = await getSession();
-        if (
-          session?.user.role === "PARK_ADMIN" ||
-          session?.user.role === "SUPER_ADMIN"
-        ) {
-          router.push("/");
-        } else {
-          setError("Access denied: Park admin privileges required");
-        }
+        setError("Invalid phone number or password");
       }
-    } catch {
+    } catch (error) {
+      console.error("Login error:", error);
       setError("An error occurred during login");
     } finally {
       setIsLoading(false);
@@ -74,19 +71,19 @@ export default function LoginPage() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="rounded-md shadow-sm -space-y-px">
             <div>
-              <label htmlFor="email" className="sr-only">
-                Email address
+              <label htmlFor="phone_number" className="sr-only">
+                Phone number
               </label>
               <input
-                {...register("email")}
-                type="email"
-                autoComplete="email"
+                {...register("phone_number")}
+                type="tel"
+                autoComplete="tel"
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-green-500 focus:border-green-500 focus:z-10 sm:text-sm"
-                placeholder="Email address"
+                placeholder="e.g., 08012345678 or 2348012345678"
               />
-              {errors.email && (
+              {errors.phone_number && (
                 <p className="mt-1 text-sm text-red-600">
-                  {errors.email.message}
+                  {errors.phone_number.message}
                 </p>
               )}
             </div>
@@ -124,8 +121,38 @@ export default function LoginPage() {
               {isLoading ? "Signing in..." : "Sign in"}
             </button>
           </div>
+
+          {/* Signup Link */}
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Don&apos;t have an account?{" "}
+              <Link
+                href="/auth/signup"
+                className="font-medium text-green-600 hover:text-green-500"
+              >
+                Create one here
+              </Link>
+            </p>
+            <p className="text-sm text-gray-600 mt-2">
+              Forgot your password?{" "}
+              <Link
+                href="/auth/forgot-password"
+                className="font-medium text-green-600 hover:text-green-500"
+              >
+                Reset it here
+              </Link>
+            </p>
+          </div>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <AuthGuard requireAuth={false}>
+      <LoginForm />
+    </AuthGuard>
   );
 }

@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signOut } from "next-auth/react";
-import { User } from "next-auth";
+import { useAuth } from "@/lib/auth-context";
 import {
   Bars3Icon,
   XMarkIcon,
@@ -13,16 +12,6 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-interface Park {
-  id: string;
-  name: string;
-  address: string;
-}
-
-interface MobileHeaderProps {
-  user: User & { parkId?: string; role?: string; park?: Park };
-}
-
 // Additional navigation items for mobile menu overlay
 const additionalNavigation = [
   { name: "Webhooks", href: "/webhooks", icon: ChatBubbleLeftRightIcon },
@@ -31,9 +20,12 @@ const additionalNavigation = [
   { name: "Messaging", href: "/messaging", icon: ChatBubbleLeftRightIcon },
 ];
 
-export function MobileHeader({ user }: MobileHeaderProps) {
+export function MobileHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+
+  if (!user) return null;
 
   return (
     <>
@@ -42,7 +34,11 @@ export function MobileHeader({ user }: MobileHeaderProps) {
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center">
             <h1 className="text-lg font-bold text-gray-900 truncate">
-              {user.park?.name || "Movaa Admin"}
+              {(user.terminal?.name ||
+                user.park?.name ||
+                user.first_name ||
+                user.name ||
+                "Park") + " Park"}
             </h1>
           </div>
 
@@ -118,15 +114,21 @@ export function MobileHeader({ user }: MobileHeaderProps) {
                   <p className="text-xs text-gray-500 capitalize">
                     {user.role?.toLowerCase().replace("_", " ")}
                   </p>
-                  {user.park && (
+                  {(user.terminal ||
+                    user.park ||
+                    user.name ||
+                    user.first_name) && (
                     <p className="text-xs text-gray-500 mt-1">
-                      {user.park.name}
+                      {user.terminal?.name ||
+                        user.park?.name ||
+                        user.first_name ||
+                        user.name}
                     </p>
                   )}
                 </div>
 
                 <button
-                  onClick={() => signOut({ callbackUrl: "/auth/login" })}
+                  onClick={() => logout()}
                   className="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md text-sm font-medium transition-colors"
                 >
                   Sign Out

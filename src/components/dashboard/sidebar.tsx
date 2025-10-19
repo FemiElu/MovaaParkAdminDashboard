@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import {
   HomeIcon,
   TruckIcon,
@@ -27,12 +28,19 @@ const navigation = [
 
 export function DashboardSidebar() {
   const pathname = usePathname();
+  const { user } = useAuth();
 
   return (
     <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
       <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-gray-900 px-6 pb-4">
         <div className="flex h-16 shrink-0 items-center">
-          <h1 className="text-xl font-bold text-white">Movaa Admin</h1>
+          <h1 className="text-xl font-bold text-white">
+            {(user?.terminal?.name ||
+              user?.park?.name ||
+              user?.first_name ||
+              user?.name ||
+              "Park") + " Park Admin"}
+          </h1>
         </div>
         <nav className="flex flex-1 flex-col">
           <ul className="flex flex-1 flex-col gap-y-7">

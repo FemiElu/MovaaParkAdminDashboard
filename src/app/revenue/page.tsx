@@ -1,27 +1,54 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+"use client";
+
+import { useAuth } from "@/lib/auth-context";
 import { DashboardHeader } from "@/components/dashboard/header";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { MobileHeader } from "@/components/dashboard/mobile-header";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { CurrencyDollarIcon } from "@heroicons/react/24/outline";
+import { useEffect } from "react";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+export default function RevenuePage() {
+  const { user, isLoading, isAuthenticated, loadUser } = useAuth();
 
-export default async function RevenuePage() {
-  const session = await getServerSession(authOptions);
+  useEffect(() => {
+    if (isAuthenticated && !user) {
+      loadUser();
+    }
+  }, [isAuthenticated, user, loadUser]);
 
-  if (!session) {
-    return <div>Please log in to view this page.</div>;
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            Please log in to view this page
+          </h2>
+          <p className="text-gray-600">
+            You need to be authenticated to access the revenue dashboard.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <DashboardSidebar />
-      <MobileHeader user={session.user} />
+      <MobileHeader />
       <div className="lg:pl-64">
-        <DashboardHeader user={session.user} />
+        <DashboardHeader />
         <main className="p-4 lg:p-6 pb-20 lg:pb-6">
           <div className="mb-6">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">

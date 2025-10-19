@@ -12,6 +12,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Trip, TripFormData, RecurrencePattern, RouteConfig } from "@/types";
+import { routeApiService } from "@/lib/route-api-service";
+import { driverApiService } from "@/lib/driver-api-service";
+
+// Helper function to convert TripFormData to TripCreateData
+// (function removed as it was unused)
 
 interface CreateEditTripModalProps {
   isOpen: boolean;
@@ -76,10 +81,20 @@ export function CreateEditTripModal({
     async function fetchRoutes() {
       try {
         setLoadingRoutes(true);
-        const response = await fetch(`/api/routes?parkId=${parkId}`);
-        const result = await response.json();
-        if (result.success) {
-          setRoutes(result.data);
+        const response = await routeApiService.getAllRoutes();
+        if (response.success && response.data) {
+          // Convert API Route format to RouteConfig format
+          const convertedRoutes = response.data.map((route) => ({
+            id: route.id,
+            parkId: parkId || "default-park",
+            destination: route.to_city,
+            destinationPark: route.to_state,
+            from_state: route.from_state,
+            isActive: true,
+            createdAt: route.created_at || new Date().toISOString(),
+            updatedAt: route.updated_at || new Date().toISOString(),
+          }));
+          setRoutes(convertedRoutes);
         }
       } catch (error) {
         console.error("Failed to fetch routes:", error);
@@ -98,17 +113,25 @@ export function CreateEditTripModal({
     async function fetchDrivers() {
       try {
         setLoadingDrivers(true);
-        const response = await fetch(`/api/drivers?parkId=${parkId}`);
-        if (response.ok) {
-          const result = await response.json();
-          // The API returns { success: true, data: { data: [...], total, page, limit, hasNext, hasPrev } }
-          // So we need to access result.data.data for the actual drivers array
-          const driversArray = result.data?.data || result.data || [];
-          console.log("API Drivers Response:", { result, driversArray });
-          setApiDrivers(Array.isArray(driversArray) ? driversArray : []);
+        const response = await driverApiService.getAllDrivers();
+        console.log("Driver API Response:", response);
+
+        if (response.success) {
+          // Transform the driver data to match the expected format
+          const transformedDrivers = response.data.map((driver) => ({
+            id: driver.user.id,
+            name: `${driver.user.first_name} ${driver.user.last_name}`,
+            phone: driver.user.phone_number,
+            rating: 5.0, // Default rating since it's not in the API response
+            parkId: parkId,
+            qualifiedRoute: "All", // Default since we don't have route-specific data
+          }));
+          console.log("Transformed Drivers:", transformedDrivers);
+          setApiDrivers(transformedDrivers);
         } else {
           // If API call fails, keep the existing drivers or fall back to empty array
-          console.warn("Failed to fetch drivers, keeping existing data");
+          console.warn("Failed to fetch drivers:", response.error);
+          setApiDrivers(drivers || []);
         }
       } catch (error) {
         console.error("Failed to fetch drivers:", error);
@@ -132,45 +155,29 @@ export function CreateEditTripModal({
       return [];
     }
 
-    if (!formData.routeId) {
-      return apiDrivers; // Show all drivers if no route selected
-    }
-
-    // Find the selected route to get its destination
-    const selectedRoute = routes.find((route) => route.id === formData.routeId);
-    if (!selectedRoute) {
-      return apiDrivers; // Show all drivers if route not found
-    }
-
-    // Filter drivers by checking if their qualifiedRoute matches the selected route's destination
-    const filteredDrivers = apiDrivers.filter(
-      (driver) => driver.qualifiedRoute === selectedRoute.destination
-    );
-
-    // Debug logging
+    // For now, show all drivers since we don't have proper route-driver mapping
+    // TODO: Implement proper route-based driver filtering when backend supports it
     console.log("Driver filtering debug:", {
       selectedRouteId: formData.routeId,
-      selectedRouteDestination: selectedRoute.destination,
       totalDrivers: apiDrivers.length,
-      filteredDrivers: filteredDrivers.length,
       allDrivers: apiDrivers.map((d) => ({
-        name: d.name,
-        qualifiedRoute: d.qualifiedRoute,
-      })),
-      filteredDriversDetails: filteredDrivers.map((d) => ({
         name: d.name,
         qualifiedRoute: d.qualifiedRoute,
       })),
     });
 
-    return filteredDrivers;
-  }, [apiDrivers, formData.routeId, routes]);
+    return apiDrivers;
+  }, [apiDrivers, formData.routeId]);
 
   // Initialize form data when modal opens or trip changes
   useEffect(() => {
     if (isOpen) {
       if (mode === "edit" && trip) {
-        setFormData({
+        console.log("Editing trip data:", trip);
+        console.log("Available drivers:", apiDrivers);
+
+        // Set initial form data
+        const initialFormData = {
           routeId: trip.routeId,
           date: trip.date,
           unitTime: trip.unitTime,
@@ -182,7 +189,10 @@ export function CreateEditTripModal({
           isRecurring: trip.isRecurring,
           recurrencePattern: trip.recurrencePattern,
           status: trip.status as "draft" | "published",
-        });
+        };
+
+        console.log("Setting form data:", initialFormData);
+        setFormData(initialFormData);
       } else {
         // Reset to defaults for create mode
         setFormData({
@@ -200,12 +210,42 @@ export function CreateEditTripModal({
       }
       setErrors({});
     }
-  }, [isOpen, mode, trip]);
+  }, [isOpen, mode, trip, apiDrivers]);
+
+  // Update form data when drivers are loaded and we're in edit mode
+  useEffect(() => {
+    if (isOpen && mode === "edit" && trip && apiDrivers.length > 0) {
+      console.log("Updating form data after drivers loaded:", {
+        tripDriverId: trip.driverId,
+        availableDrivers: apiDrivers.map((d) => ({ id: d.id, name: d.name })),
+      });
+
+      // Find the driver in the loaded drivers list
+      const driver = apiDrivers.find((d) => d.id === trip.driverId);
+      if (driver) {
+        console.log("Found matching driver:", driver);
+        setFormData((prev) => ({
+          ...prev,
+          driverId: trip.driverId,
+          driverPhone: driver.phone,
+        }));
+      } else {
+        console.log("No matching driver found for ID:", trip.driverId);
+      }
+    }
+  }, [isOpen, mode, trip, apiDrivers]);
 
   // Update driver phone when driver changes
   useEffect(() => {
+    console.log("Driver update effect:", {
+      driverId: formData.driverId,
+      apiDrivers: apiDrivers.length,
+      drivers: apiDrivers.map((d) => ({ id: d.id, name: d.name })),
+    });
+
     if (formData.driverId && Array.isArray(apiDrivers)) {
       const driver = apiDrivers.find((d) => d.id === formData.driverId);
+      console.log("Found driver:", driver);
       if (driver) {
         setFormData((prev) => ({
           ...prev,

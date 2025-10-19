@@ -4,6 +4,9 @@ import React, { useState, useMemo, useEffect } from "react";
 import { RouteTabs } from "./route-tabs";
 import { CreateEditTripModal } from "./create-edit-trip-modal";
 import { TripFormData, Trip, RouteConfig } from "@/types";
+import { driverApiService } from "@/lib/driver-api-service";
+import { routeApiService } from "@/lib/route-api-service";
+import { tripApiService, Trip as ApiTrip } from "@/lib/trip-api-service";
 // (popover removed)
 
 interface TripsPageClientProps {
@@ -49,12 +52,27 @@ export function TripsPageClient({
   useEffect(() => {
     const fetchDrivers = async () => {
       try {
-        const response = await fetch(`/api/drivers?parkId=${parkId}`);
-        if (response.ok) {
-          const result = await response.json();
-          // The API returns { success: true, data: { data: [...], total, page, limit, hasNext, hasPrev } }
-          const driversArray = result.data?.data || result.data || [];
-          setDrivers(Array.isArray(driversArray) ? driversArray : []);
+        const response = await driverApiService.getAllDrivers();
+        if (response.success && response.data) {
+          // Convert API Driver format to expected Driver format
+          const convertedDrivers = response.data.map((driver) => ({
+            id: driver.user.id,
+            parkId: parkId || "default-park",
+            name: `${driver.user.first_name} ${driver.user.last_name}`,
+            phone: driver.user.phone_number,
+            licenseNumber: driver.plate_number, // Using plate_number as license number
+            licenseExpiry: undefined,
+            qualifiedRoute: "All", // Default since we don't have route-specific data
+            isActive: driver.user.is_active ?? true,
+            rating: 5.0, // Default rating
+            vehiclePlateNumber: driver.plate_number,
+            address: driver.address,
+            photo: undefined,
+            documents: undefined,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }));
+          setDrivers(convertedDrivers);
         }
       } catch (error) {
         console.error("Failed to fetch drivers:", error);
@@ -70,12 +88,22 @@ export function TripsPageClient({
   useEffect(() => {
     const fetchRoutes = async () => {
       try {
-        const response = await fetch(`/api/routes?parkId=${parkId}`);
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success) {
-            setRoutes(result.data || []);
-          }
+        const response = await routeApiService.getAllRoutes();
+        if (response.success && response.data) {
+          // Convert API Route format to RouteConfig format
+          const convertedRoutes = response.data.map((route) => ({
+            id: route.id,
+            parkId: parkId || "default-park",
+            destination: route.to_city,
+            destinationPark: route.to_state,
+            from_state: route.from_state,
+            isActive: true,
+            createdAt: route.created_at || new Date().toISOString(),
+            updatedAt: route.updated_at || new Date().toISOString(),
+          }));
+          console.log("Raw API routes:", response.data);
+          console.log("Converted routes:", convertedRoutes);
+          setRoutes(convertedRoutes);
         }
       } catch (error) {
         console.error("Failed to fetch routes:", error);
@@ -93,13 +121,8 @@ export function TripsPageClient({
     const controller = new AbortController();
     const fetchTrips = async () => {
       try {
-        const params = new URLSearchParams({ parkId, date: selectedDate });
-        const res = await fetch(`/api/trips?${params.toString()}`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) return;
-        const json = await res.json();
-        console.log("Trips fetch response:", json);
+        const response = await tripApiService.getAllTrips();
+        console.log("Trips API response:", response);
         console.log(
           "Fetching trips for date:",
           selectedDate,
@@ -107,15 +130,49 @@ export function TripsPageClient({
           parkId
         );
 
-        if (json?.success && Array.isArray(json.data)) {
-          console.log("Setting trips:", json.data);
-          setApiTrips(json.data as Trip[]);
+        if (response.success && response.data) {
+          // Handle different response formats
+          const tripsArray = Array.isArray(response.data) ? response.data : [];
+
+          if (tripsArray.length === 0) {
+            console.log("No trips found - this is normal for a new system");
+            setApiTrips([]);
+          } else {
+            // Convert API Trip format to expected Trip format
+            const convertedTrips = tripsArray.map((trip: ApiTrip) => ({
+              id: trip.id,
+              parkId: parkId || "default-park",
+              routeId: trip.to_route?.id || "",
+              driverId: trip.driver || "",
+              date: trip.departure_date,
+              unitTime: trip.departure_time,
+              seatCount: trip.total_seats,
+              confirmedBookingsCount: trip.total_seats - trip.available_seats,
+              maxParcelsPerVehicle: 10, // Default value
+              driverPhone: "", // Will be filled from driver data if needed
+              price: trip.price,
+              status: (trip.is_active ? "published" : "draft") as
+                | "published"
+                | "draft"
+                | "live"
+                | "completed"
+                | "cancelled",
+              payoutStatus: "NotScheduled" as const,
+              isRecurring: trip.is_recurrent,
+              parentTripId: undefined,
+              createdAt: trip.created_at || new Date().toISOString(),
+              updatedAt: trip.updated_at || new Date().toISOString(),
+            }));
+            console.log("Raw API trips:", tripsArray);
+            console.log("Converted trips:", convertedTrips);
+            setApiTrips(convertedTrips);
+          }
         } else {
-          console.log("No trips found or invalid response");
+          console.log("Failed to fetch trips:", response);
           setApiTrips([]);
         }
-      } catch {
-        // ignore for now
+      } catch (error) {
+        console.error("Error fetching trips:", error);
         setApiTrips([]);
       }
     };
@@ -131,11 +188,33 @@ export function TripsPageClient({
     }
 
     const allTrips = apiTrips; // authoritative source from server
-    let filtered = allTrips.filter((trip) => trip.unitTime === departureTime);
+    console.log("Filtering trips:", {
+      allTrips,
+      selectedDate,
+      departureTime,
+      selectedRouteId,
+    });
+
+    // Filter by date first
+    let filtered = allTrips.filter((trip) => trip.date === selectedDate);
+    console.log("Trips after date filter:", filtered);
+
+    // Then filter by time (handle both HH:MM and HH:MM:SS formats)
+    filtered = filtered.filter((trip) => {
+      const tripTime = trip.unitTime.includes(":")
+        ? trip.unitTime.split(":").slice(0, 2).join(":")
+        : trip.unitTime;
+      const expectedTime = departureTime.includes(":")
+        ? departureTime.split(":").slice(0, 2).join(":")
+        : departureTime;
+      return tripTime === expectedTime;
+    });
+    console.log("Trips after time filter:", filtered);
 
     // Filter by route if selected
     if (selectedRouteId) {
       filtered = filtered.filter((trip) => trip.routeId === selectedRouteId);
+      console.log("Trips after route filter:", filtered);
     }
 
     return filtered;
@@ -159,105 +238,95 @@ export function TripsPageClient({
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       const isEditing = editingTrip !== null;
-      const url = isEditing ? `/api/trips/${editingTrip.id}` : "/api/trips";
-      const method = isEditing ? "PUT" : "POST";
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          parkId,
-          ...tripData,
-        }),
-      });
+      // Find the selected route to get the route details
+      const selectedRoute = routes.find(
+        (route) => route.id === tripData.routeId
+      );
 
-      // If server returns an empty body (some environments), still treat 2xx as success
-      if (!response.ok) {
-        let errorMessage = isEditing
-          ? "Failed to update trip"
-          : "Failed to create trip";
-        try {
-          const maybeJson = await response.json();
-          errorMessage = maybeJson?.error || errorMessage;
-        } catch {
-          try {
-            errorMessage = (await response.text()) || errorMessage;
-          } catch {}
-        }
-        return { success: false, error: errorMessage };
+      if (!selectedRoute) {
+        return { success: false, error: "Selected route not found" };
       }
 
-      // Handle response based on whether we're creating or editing
+      // Convert TripFormData to TripCreateData format
+      const apiData = {
+        total_seats: tripData.seatCount,
+        to_route: selectedRoute.id,
+        is_recurrent: tripData.isRecurring,
+        from_state: selectedRoute.destination,
+        departure_date: tripData.date,
+        departure_time: tripData.unitTime,
+        price: tripData.price.toString(),
+      };
+
+      console.log("Converting trip data for API:", { tripData, apiData });
+
+      let response;
       if (isEditing) {
-        // For editing, just refresh the trips list
-        console.log("Trip updated successfully");
-        // Trigger a refetch of trips to show updated data
-        const params = new URLSearchParams({ parkId, date: selectedDate });
-        const res = await fetch(`/api/trips?${params.toString()}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json?.success && Array.isArray(json.data)) {
-            setApiTrips(json.data as Trip[]);
-          }
-        }
+        // Update existing trip
+        response = await tripApiService.updateTrip(editingTrip.id, apiData);
+        console.log("Trip update response:", response);
       } else {
-        // For creating, handle the response as before
-        try {
-          const result = await response.json();
-          console.log("Trip creation response:", result);
-
-          if (result && result.success === false) {
-            return { success: false, error: result.error };
-          }
-          const created = result?.data?.trips as Trip[] | undefined;
-          console.log("Created trips:", created);
-          console.log("Selected date:", selectedDate);
-
-          if (Array.isArray(created) && created.length > 0) {
-            // If the created trips are for a different date/route than the current filters,
-            // switch filters so the user immediately sees what they just created.
-            const first = created[0];
-            if (first?.date && first?.routeId) {
-              if (first.date !== selectedDate) {
-                console.log("Switching UI to created trip date:", first.date);
-                setSelectedDate(first.date);
-              }
-              if (first.routeId !== selectedRouteId) {
-                console.log(
-                  "Switching UI to created trip route:",
-                  first.routeId
-                );
-                setSelectedRouteId(first.routeId);
-              }
-            }
-
-            // Optimistically merge created trips that match the target date shown after potential switch
-            const targetDate = first?.date || selectedDate;
-            const toShow = created.filter((t) => t.date === targetDate);
-            console.log("Trips to merge for target date", targetDate, toShow);
-
-            setApiTrips((prev) => {
-              // Avoid duplicates by id
-              const existingIds = new Set(prev.map((t) => t.id));
-              const additions = toShow.filter((t) => !existingIds.has(t.id));
-              const newTrips = additions.length
-                ? [...prev, ...additions]
-                : prev;
-              console.log("Updated trips list:", newTrips);
-              return newTrips;
-            });
-          }
-        } catch (error) {
-          console.log("Error parsing trip creation response:", error);
-          // No JSON body – proceed
-        }
+        // Create new trip
+        response = await tripApiService.createTrip(apiData);
+        console.log("Trip creation response:", response);
       }
 
-      return { success: true };
-    } catch {
-      return { success: false, error: "Failed to save trip" };
+      if (response.success) {
+        console.log(
+          "Trip creation/update successful, refreshing trips list..."
+        );
+        // Refresh the trips list to show updated data
+        const tripsResponse = await tripApiService.getAllTrips();
+        console.log("Trips refresh response:", tripsResponse);
+
+        if (tripsResponse.success && tripsResponse.data) {
+          // Convert API trips to frontend format
+          const convertedTrips = tripsResponse.data.map((trip: ApiTrip) => ({
+            id: trip.id,
+            parkId: parkId || "default-park",
+            routeId: trip.to_route?.id || "",
+            driverId: trip.driver || "",
+            date: trip.departure_date,
+            unitTime: trip.departure_time,
+            seatCount: trip.total_seats,
+            confirmedBookingsCount: trip.total_seats - trip.available_seats,
+            maxParcelsPerVehicle: 10,
+            driverPhone: "",
+            price: trip.price,
+            status: (trip.is_active ? "published" : "draft") as
+              | "published"
+              | "draft"
+              | "live"
+              | "completed"
+              | "cancelled",
+            payoutStatus: "NotScheduled" as const,
+            isRecurring: trip.is_recurrent,
+            parentTripId: undefined,
+            createdAt: trip.created_at || new Date().toISOString(),
+            updatedAt: trip.updated_at || new Date().toISOString(),
+          }));
+          console.log("Setting updated trips:", convertedTrips);
+          setApiTrips(convertedTrips);
+        }
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          error:
+            response.error ||
+            (isEditing ? "Failed to update trip" : "Failed to create trip"),
+        };
+      }
+    } catch (error) {
+      console.error("Trip save error:", error);
+      return {
+        success: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
+      };
     }
   };
 
@@ -475,7 +544,8 @@ export function TripsPageClient({
                 return (
                   <div
                     key={trip.id}
-                    className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-all duration-200"
+                    className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-all duration-200 cursor-pointer"
+                    onClick={() => (window.location.href = `/trips/${trip.id}`)}
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1 min-w-0">
@@ -545,17 +615,31 @@ export function TripsPageClient({
                           </div>
 
                           <div className="flex items-center gap-2">
+                            {/* Money (Cash) icon as a fallback */}
                             <svg
                               className="w-4 h-4 text-gray-400 flex-shrink-0"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
+                              aria-hidden="true"
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
+                              <rect
+                                x="3"
+                                y="6"
+                                width="18"
+                                height="12"
+                                rx="2"
                                 strokeWidth={2}
-                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                                stroke="currentColor"
+                                fill="none"
+                              />
+                              <circle
+                                cx="12"
+                                cy="12"
+                                r="3"
+                                strokeWidth={2}
+                                stroke="currentColor"
+                                fill="none"
                               />
                             </svg>
                             <span className="text-gray-600">
@@ -600,7 +684,10 @@ export function TripsPageClient({
                       {/* Edit Button - Icon Only */}
                       <div className="flex-shrink-0 ml-3">
                         <button
-                          onClick={() => handleEditTrip(trip)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditTrip(trip);
+                          }}
                           className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200"
                           title="Edit trip"
                         >

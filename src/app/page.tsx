@@ -1,40 +1,26 @@
-import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+"use client";
+
+import { useEffect } from "react";
 import { DashboardOverview } from "@/components/dashboard/overview";
-import { DashboardHeader } from "@/components/dashboard/header";
-import { DashboardSidebar } from "@/components/dashboard/sidebar";
-import { MobileHeader } from "@/components/dashboard/mobile-header";
-import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
+import { DashboardLayout } from "@/components/dashboard/dashboard-layout";
+import { AuthGuard } from "@/components/auth/auth-guard";
+import { useAuth } from "@/lib/auth-context";
 
-export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+export default function DashboardPage() {
+  const { user, loadUser } = useAuth();
 
-  if (!session) {
-    redirect("/auth/login");
-  }
+  useEffect(() => {
+    // Load user data when the dashboard loads
+    if (!user) {
+      loadUser();
+    }
+  }, [user, loadUser]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Desktop Sidebar */}
-      <DashboardSidebar />
-
-      {/* Mobile Header */}
-      <MobileHeader user={session.user} />
-
-      {/* Main Content */}
-      <div className="lg:pl-64">
-        {/* Desktop Header */}
-        <DashboardHeader user={session.user} />
-
-        {/* Content with mobile bottom padding */}
-        <main className="p-4 lg:p-6 pb-20 lg:pb-6">
-          <DashboardOverview parkId={session.user.parkId} />
-        </main>
-      </div>
-
-      {/* Mobile Bottom Navigation */}
-      <MobileBottomNav />
-    </div>
+    <AuthGuard>
+      <DashboardLayout>
+        <DashboardOverview parkId={user?.parkId} />
+      </DashboardLayout>
+    </AuthGuard>
   );
 }

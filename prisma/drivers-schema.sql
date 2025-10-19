@@ -61,3 +61,7 @@ INSERT INTO drivers (id, park_id, name, phone, license_number, license_expiry, q
 ('d_ikej_2', 'ikeja-motor-park', 'Fatima Ibrahim', '+2348034444444', 'OSU23456HI9', DATE_ADD(NOW(), INTERVAL 20 DAY), 'Ilesa', true, 4.8, 'NOP-345QR', 'Alausa, Lagos'),
 ('d_ikej_3', 'ikeja-motor-park', 'Chinedu Anyanwu', '+2348035555555', 'PHC34567KL9', DATE_ADD(NOW(), INTERVAL 10 DAY), 'Port Harcourt', true, 4.2, 'STU-456VW', 'Ikeja, Lagos'),
 ('d_ikej_4', 'ikeja-motor-park', 'Aisha Mohammed', '+2348036666666', 'IBA76543MN1', DATE_ADD(NOW(), INTERVAL 3 DAY), 'Port Harcourt', false, 4.0, 'WXY-901ZA', 'Alausa, Lagos');
+
+
+
+

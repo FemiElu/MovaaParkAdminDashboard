@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateRoute } from "@/lib/routes-store";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { routesApiService } from "@/lib/routes-api-service";
 import { z } from "zod";
 
 const UpdateRouteSchema = z.object({
@@ -8,11 +10,13 @@ const UpdateRouteSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const parsed = UpdateRouteSchema.safeParse(body);
     if (!parsed.success) {
@@ -21,29 +25,52 @@ export async function PUT(
         { status: 400 }
       );
     }
-    const { destination, destinationPark, isActive } = parsed.data;
-    const resolvedParams = await params;
-    const routeId = resolvedParams.id;
-    // Update in-memory store
-    const updated = updateRoute(routeId, {
-      destination,
-      destinationPark,
-      isActive,
-    });
-    if (!updated) {
-      return NextResponse.json({ error: "Route not found" }, { status: 404 });
-    }
-    return NextResponse.json({ success: true, data: updated });
+
+    // const resolvedParams = await params;
+    // const routeId = resolvedParams.id; // Unused but kept for future implementation
+
+    // Note: The backend API doesn't have an update endpoint based on your specification
+    // For now, we'll return an error indicating this functionality isn't available
+    return NextResponse.json(
+      {
+        error: "Route update functionality not available in backend API",
+        message: "Please delete and recreate the route instead",
+      },
+      { status: 501 }
+    );
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
 
-export async function DELETE() {
-  // For demo purposes, return success message
-  return NextResponse.json({
-    success: true,
-    message:
-      "Route delete functionality will be implemented when database is connected",
-  });
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const resolvedParams = await params;
+    const routeId = resolvedParams.id;
+
+    // Delete route via backend API
+    const response = await routesApiService.deleteRoute(routeId);
+
+    if (!response.success) {
+      return NextResponse.json(
+        { error: response.error || "Failed to delete route" },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Route deleted successfully",
+    });
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+  }
 }

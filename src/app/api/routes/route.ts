@@ -1,38 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { z } from "zod";
-import { listRoutes, createRoute } from "@/lib/routes-store";
+import { routesApiService } from "@/lib/routes-api-service";
+import {
+  backendRouteToFrontend,
+  frontendRouteToBackend,
+} from "@/lib/route-converters";
 
 const routeSchema = z.object({
   destination: z.string().min(1),
   destinationPark: z.string().trim().optional(),
   isActive: z.boolean(),
   parkId: z.string().optional(),
+  from_state: z.string().optional(),
 });
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    // Get token from Authorization header
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const token = authHeader.split(" ")[1];
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
-    const parkId = searchParams.get("parkId") || session.user.parkId;
+    const parkId = searchParams.get("parkId") || "default-park";
 
-    if (!parkId) {
-      return NextResponse.json({ error: "Park ID required" }, { status: 400 });
+    // Fetch routes from backend API with token
+    const response = await routesApiService.getAllRoutes(token);
+
+    if (!response.success) {
+      return NextResponse.json(
+        { error: response.error || "Failed to fetch routes" },
+        { status: 500 }
+      );
     }
 
-    // Verify user has access to this park
-    if (session.user.role !== "SUPER_ADMIN" && session.user.parkId !== parkId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
+    // Convert backend routes to frontend format
+    const frontendRoutes = (response.data || []).map((route) =>
+      backendRouteToFrontend(route, parkId)
+    );
 
-    // Return in-memory data for the specific park
-    const routes = listRoutes(parkId) || [];
-    return NextResponse.json({ success: true, data: routes });
+    return NextResponse.json({ success: true, data: frontendRoutes });
   } catch (error) {
     console.error("Error fetching routes:", error);
     return NextResponse.json(
@@ -44,8 +57,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
+    // Get token from Authorization header
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const token = authHeader.split(" ")[1];
+    if (!token) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -63,39 +82,30 @@ export async function POST(request: NextRequest) {
     }
 
     const data = validation.data;
-    const parkId = data.parkId || session.user.parkId;
+    const parkId = data.parkId || "default-park";
 
-    if (!parkId) {
-      return NextResponse.json({ error: "Park ID required" }, { status: 400 });
-    }
-
-    // Verify user has access to this park
-    if (session.user.role !== "SUPER_ADMIN" && session.user.parkId !== parkId) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
-
-    // Check if route already exists for this park
-    const existingRoutes = listRoutes(parkId) || [];
-    const existingRoute = existingRoutes.find((r) => {
-      const sameCity = r.destination === data.destination;
-      const sameDestPark = r.destinationPark ?? undefined;
-      const requestedDestPark = data.destinationPark ?? undefined;
-      return sameCity && sameDestPark === requestedDestPark;
+    // Convert frontend data to backend format
+    const backendData = frontendRouteToBackend({
+      destination: data.destination,
+      destinationPark: data.destinationPark,
+      from_state: data.from_state,
     });
 
-    if (existingRoute) {
+    // Create route via backend API with token
+    const response = await routesApiService.createRoute(backendData, token);
+
+    if (!response.success) {
       return NextResponse.json(
-        {
-          error: "Route to this destination already exists",
-        },
-        { status: 409 }
+        { error: response.error || "Failed to create route" },
+        { status: 500 }
       );
     }
 
-    // Create new route in in-memory data
-    const newRoute = createRoute({ ...data, parkId });
+    // Convert backend response to frontend format
+    const frontendRoute = backendRouteToFrontend(response.data!, parkId);
+
     return NextResponse.json(
-      { success: true, data: newRoute },
+      { success: true, data: frontendRoute },
       { status: 201 }
     );
   } catch (error) {

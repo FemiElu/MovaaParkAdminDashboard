@@ -8,6 +8,8 @@ import { RouteTabs } from "@/components/drivers/route-tabs";
 import { DriverSearch } from "@/components/drivers/driver-search";
 import { DriverPagination } from "@/components/drivers/driver-pagination";
 import { Driver, RouteConfig } from "@/types";
+import { driverApiService } from "@/lib/driver-api-service";
+import { routeApiService } from "@/lib/route-api-service";
 
 interface DriversPageClientProps {
   parkId: string;
@@ -24,38 +26,131 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Fetch drivers and routes
+  // Fetch routes first, then drivers
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch drivers
-        const driversResponse = await fetch(`/api/drivers?parkId=${parkId}`);
-        const driversResult = await driversResponse.json();
-        if (driversResult.success && driversResult.data) {
-          // Handle paginated response structure
-          if (Array.isArray(driversResult.data.data)) {
-            setDrivers(driversResult.data.data);
-          }
-          // Fallback: if data is directly an array (non-paginated response)
-          else if (Array.isArray(driversResult.data)) {
-            setDrivers(driversResult.data);
+        // Fetch routes first
+        const routesResponse = await routeApiService.getAllRoutes();
+        console.log("Routes API response:", routesResponse);
+
+        let fetchedRoutes: RouteConfig[] = [];
+        if (routesResponse.success) {
+          // Handle different response formats - backend returns {message: 'Success', data: Array(0), errors: null}
+          const routesArray = Array.isArray(routesResponse.data)
+            ? routesResponse.data
+            : (routesResponse.data as { data?: unknown[] })?.data || [];
+
+          if (routesArray.length === 0) {
+            console.log("No routes found - this is normal for a new system");
+            fetchedRoutes = [];
           } else {
-            console.error("Invalid drivers response structure:", driversResult);
-            setDrivers([]);
+            // Convert API Route format to RouteConfig format
+            const convertedRoutes = routesArray.map((route: unknown) => {
+              const r = route as {
+                id: string;
+                to_city: string;
+                to_state: string;
+                from_state: string;
+                created_at?: string;
+                updated_at?: string;
+              };
+
+              return {
+                id: r.id,
+                parkId: parkId || "default-park",
+                destination: r.to_city,
+                destinationPark: r.to_state,
+                from_state: r.from_state,
+                isActive: true,
+                createdAt: r.created_at || new Date().toISOString(),
+                updatedAt: r.updated_at || new Date().toISOString(),
+              };
+            });
+            fetchedRoutes = convertedRoutes;
           }
         } else {
-          console.error("Invalid drivers response:", driversResult);
-          setDrivers([]);
+          console.error("Failed to fetch routes:", routesResponse);
+          fetchedRoutes = [];
         }
 
-        // Fetch routes for tabs
-        const routesResponse = await fetch(`/api/routes?parkId=${parkId}`);
-        const routesResult = await routesResponse.json();
-        if (routesResult.success && Array.isArray(routesResult.data)) {
-          setRoutes(routesResult.data);
+        setRoutes(fetchedRoutes);
+
+        // Now fetch drivers with routes available
+        const driversResponse = await driverApiService.getAllDrivers();
+        console.log("Drivers API response:", driversResponse);
+
+        if (driversResponse.success) {
+          // Handle different response formats - backend returns {message: 'Success', data: Array(0), errors: null}
+          const driversArray = Array.isArray(driversResponse.data)
+            ? driversResponse.data
+            : (driversResponse.data as { data?: unknown[] })?.data || [];
+
+          console.log("Raw drivers array from API:", driversArray);
+
+          if (driversArray.length === 0) {
+            console.log("No drivers found - this is normal for a new system");
+            setDrivers([]);
+          } else {
+            // Convert API Driver format to expected Driver format
+            const convertedDrivers = driversArray.map((driver: unknown) => {
+              const d = driver as {
+                user: {
+                  id: string;
+                  first_name: string;
+                  last_name: string;
+                  phone_number: string;
+                  is_active: boolean;
+                  avatar: string;
+                };
+                plate_number: string;
+                address: string;
+              };
+
+              console.log("Converting driver:", d);
+
+              // Find the route for this driver based on route_id if available
+              // For now, we'll assign a default route or the first available route
+              let assignedRoute = "N/A";
+              if (fetchedRoutes.length > 0) {
+                // If we have routes, assign the first one as default
+                // This will be improved when backend provides proper route assignment
+                assignedRoute = fetchedRoutes[0].destination;
+                console.log(
+                  "Assigning driver to route:",
+                  assignedRoute,
+                  "from routes:",
+                  fetchedRoutes.map((r) => r.destination)
+                );
+              }
+
+              return {
+                id: d.user.id,
+                parkId: parkId || "default-park",
+                name:
+                  `${d.user.first_name || ""} ${
+                    d.user.last_name || ""
+                  }`.trim() || "Unknown Driver",
+                phone: d.user.phone_number || "Unknown",
+                licenseNumber: "N/A", // No license number in this response structure
+                licenseExpiry: undefined,
+                qualifiedRoute: assignedRoute, // Assign route for filtering
+                isActive: d.user.is_active ?? true,
+                rating: undefined,
+                vehiclePlateNumber: d.plate_number,
+                address: d.address,
+                photo: d.user.avatar || undefined,
+                documents: undefined,
+                createdAt: new Date().toISOString(), // No created_at in this response
+                updatedAt: new Date().toISOString(), // No updated_at in this response
+              };
+            });
+            console.log("Converted drivers:", convertedDrivers);
+            setDrivers(convertedDrivers);
+          }
         } else {
-          console.error("Invalid routes response:", routesResult);
-          setRoutes([]);
+          console.error("Failed to fetch drivers:", driversResponse);
+          setDrivers([]);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -73,24 +168,59 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
   // Calculate driver counts by route
   const driverCounts = useMemo(() => {
     const counts: Record<string, number> = {};
+    console.log(
+      "Calculating driver counts. Drivers:",
+      drivers.map((d) => ({ name: d.name, qualifiedRoute: d.qualifiedRoute }))
+    );
+    console.log(
+      "Routes:",
+      routes.map((r) => ({ id: r.id, destination: r.destination }))
+    );
+
     routes.forEach((route) => {
-      counts[route.id] = drivers.filter(
-        (d) => d.qualifiedRoute === route.destination
-      ).length;
+      // Count drivers assigned to this route
+      const matchingDrivers = drivers.filter((d) => {
+        const matches = d.qualifiedRoute === route.destination;
+        console.log(
+          `Driver ${d.name} (${d.qualifiedRoute}) matches route ${route.destination}? ${matches}`
+        );
+        return matches;
+      });
+      counts[route.id] = matchingDrivers.length;
+      console.log(
+        `Route ${route.destination} (${route.id}) has ${matchingDrivers.length} drivers`
+      );
     });
+
+    console.log("Final driver counts:", counts);
     return counts;
   }, [drivers, routes]);
 
   // Filter and search drivers
   const filteredDrivers = useMemo(() => {
     let filtered = drivers;
+    console.log(
+      "Filtering drivers. Selected route ID:",
+      selectedRouteId,
+      "Search term:",
+      searchTerm
+    );
 
     // Filter by selected route
     if (selectedRouteId) {
       const selectedRoute = routes.find((r) => r.id === selectedRouteId);
+      console.log("Selected route:", selectedRoute);
       if (selectedRoute) {
-        filtered = filtered.filter(
-          (driver) => driver.qualifiedRoute === selectedRoute.destination
+        const beforeFilter = filtered.length;
+        filtered = filtered.filter((driver) => {
+          const matches = driver.qualifiedRoute === selectedRoute.destination;
+          console.log(
+            `Driver ${driver.name} (${driver.qualifiedRoute}) matches selected route ${selectedRoute.destination}? ${matches}`
+          );
+          return matches;
+        });
+        console.log(
+          `Filtered from ${beforeFilter} to ${filtered.length} drivers`
         );
       }
     }
@@ -98,13 +228,21 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
     // Filter by search term
     if (searchTerm.trim()) {
       const searchLower = searchTerm.toLowerCase();
+      const beforeSearch = filtered.length;
       filtered = filtered.filter(
         (driver) =>
           driver.name.toLowerCase().includes(searchLower) ||
           driver.phone.includes(searchTerm)
       );
+      console.log(
+        `Search filtered from ${beforeSearch} to ${filtered.length} drivers`
+      );
     }
 
+    console.log(
+      "Final filtered drivers:",
+      filtered.map((d) => ({ name: d.name, qualifiedRoute: d.qualifiedRoute }))
+    );
     return filtered;
   }, [drivers, selectedRouteId, routes, searchTerm]);
 

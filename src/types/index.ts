@@ -15,6 +15,17 @@ export interface Park {
   updatedAt: string;
 }
 
+// Backend API Route structure
+export interface BackendRoute {
+  id: string;
+  from_state: string | null;
+  to_state: string;
+  to_city: string | null;
+  bus_stop: string | null;
+  terminal: string;
+}
+
+// Frontend Route structure (for backward compatibility and UI)
 export interface RouteConfig {
   id: string;
   parkId: string;
@@ -23,6 +34,22 @@ export interface RouteConfig {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+// Route form data for creating/updating routes
+export interface RouteFormData {
+  destination: string;
+  destinationPark?: string;
+  from_state: string;
+  isActive: boolean;
+}
+
+// Backend route creation data
+export interface BackendRouteCreateData {
+  from_state: string;
+  to_state: string;
+  to_city: string;
+  bus_stop: string;
 }
 
 export interface Driver {
@@ -281,10 +308,63 @@ export interface Booking {
   paymentStatus: "pending" | "confirmed" | "refunded";
   bookingStatus: "pending" | "confirmed" | "cancelled" | "refunded";
   checkedIn?: boolean;
+  isCheckedIn?: boolean;
   paymentHoldExpiresAt?: number; // timestamp for 5-minute hold
   holdToken?: string; // Unique token for seat hold
+  qrCode?: string;
+  bookingId?: string;
   createdAt: string;
   updatedAt: string;
+  // Additional fields from backend
+  trip?: {
+    id: string;
+    fromState: string;
+    toRoute: {
+      id: string;
+      fromState: string;
+      toState: string;
+      toCity: string;
+      busStop: string;
+      terminal: string;
+    };
+    departureDate: string;
+    departureTime: string;
+    busTerminal: {
+      id: string;
+      name: string;
+      address: string;
+      city: string;
+      state: string;
+      location: {
+        latitude: number;
+        longitude: number;
+      };
+    };
+    totalSeats: number;
+    isFull: boolean;
+    isActive: boolean;
+    isCompleted: boolean;
+    isCancelled: boolean;
+    availableSeats: number;
+    price: number;
+    createdAt: string;
+  };
+  user?: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    phone_number: string;
+    email: string;
+    address: string;
+    is_email_generated: boolean;
+    avatar: string;
+    city: string;
+    state: string;
+    country: string;
+    user_type: string;
+    is_active: boolean;
+    next_of_kin: string;
+  };
 }
 
 export interface Vehicle {
