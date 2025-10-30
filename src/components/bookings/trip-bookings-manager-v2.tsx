@@ -1,26 +1,38 @@
 "use client";
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { bookingApiService } from "@/lib/booking-api-service";
+import React, { useState, useEffect, useCallback } from "react";
+import { bookingApiService, BackendBooking } from "@/lib/booking-api-service";
 import { routeApiService } from "@/lib/route-api-service";
-import { tripApiService, Trip } from "@/lib/trip-api-service";
 import { RouteTabs } from "../trips/route-tabs";
 import { DateTimeSelector } from "../trips/date-time-selector";
 import { TripBookingCard } from "./trip-booking-card";
 import { PassengerManifestModal } from "./passenger-manifest-modal";
 import { BookingSearchModal } from "./booking-search-modal";
 import { RouteConfig, Booking } from "@/types";
+import { Trip } from "@/lib/trip-api-service";
+import { tripApiService } from "@/lib/trip-api-service";
+
+// --- TEMP inline BackendTrip interface ---
+interface BackendTrip {
+  id: string;
+  to_route?: {
+    id: string;
+    to_city?: string;
+  };
+  departure_date: string;
+  departure_time: string;
+  total_seats: number;
+  is_cancelled?: boolean;
+  is_completed?: boolean;
+  is_active?: boolean;
+  price: number;
+  created_at?: string;
+  updated_at?: string;
+}
+// ----------------------------------------
 
 interface TripBookingsManagerV2Props {
   parkId: string;
-  drivers: Array<{
-    id: string;
-    name: string;
-    phone: string;
-    rating: number;
-    parkId: string;
-    routeIds?: string[];
-  }>;
 }
 
 interface TripWithBookings {
@@ -57,10 +69,7 @@ interface TripWithBookings {
   };
 }
 
-export function TripBookingsManagerV2({
-  parkId,
-  drivers,
-}: TripBookingsManagerV2Props) {
+export function TripBookingsManagerV2({ parkId }: TripBookingsManagerV2Props) {
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -68,14 +77,16 @@ export function TripBookingsManagerV2({
     null
   );
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [localCheckedIn, setLocalCheckedIn] = useState<Set<string>>(new Set());
   const [highlightedBookingId, setHighlightedBookingId] = useState<
     string | null
   >(null);
   const [routes, setRoutes] = useState<RouteConfig[]>([]);
-  const [trips, setTrips] = useState<TripWithBookings[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingTrips, setLoadingTrips] = useState(false);
+  const [trips, setTrips] = useState<BackendTrip[]>([]);
+  const [tripBookings, setTripBookings] = useState<Record<string, Booking[]>>(
+    {}
+  );
+  const [modalLoading, setModalLoading] = useState(false);
 
   // Static departure time
   const departureTime = "06:00";
@@ -109,107 +120,41 @@ export function TripBookingsManagerV2({
       }
     } catch (error) {
       console.error("Failed to fetch routes:", error);
-      setError("Failed to fetch routes");
+      // setError("Failed to fetch routes"); // Removed unused error state
     }
   }, [parkId]);
 
-  // Fetch trips with bookings for the selected date and route
-  const fetchTripsWithBookings = useCallback(async () => {
-    if (!selectedDate || !isClient) return;
-
-    setLoading(true);
-    setError(null);
-
+  // Fetch trips for current date and route
+  const fetchTrips = useCallback(async () => {
+    setLoadingTrips(true);
+    // setError(null); // Removed unused error state
     try {
-      // Fetch real trips from the backend
-      const tripsResponse = await tripApiService.getAllTrips();
-
-      if (!tripsResponse.success) {
-        console.error("Failed to fetch trips:", tripsResponse);
-        setError("Failed to fetch trips from backend");
+      const tripResp = await tripApiService.getAllTrips();
+      if (!tripResp.success) {
+        setTrips([]);
+        // setError('Failed to fetch trips'); // Removed unused error state
         return;
       }
-
-      const backendTrips = tripsResponse.data;
-      const tripsWithBookings: TripWithBookings[] = [];
-
-      // Filter trips by date and route
-      const filteredTrips = backendTrips.filter((trip: Trip) => {
-        // Filter by date
-        if (trip.departure_date !== selectedDate) return false;
-
-        // Filter by departure time (if specified)
-        if (trip.departure_time !== departureTime) return false;
-
-        // Filter by route if selected
-        if (selectedRouteId && trip.to_route.id !== selectedRouteId)
-          return false;
-
-        return true;
-      });
-
-      // For each filtered trip, fetch its bookings
-      for (const trip of filteredTrips) {
-        // Fetch bookings for this trip
-        const bookingsResponse = await bookingApiService.getTripBookings(
-          trip.id
-        );
-
-        let bookings: Booking[] = [];
-
-        if (bookingsResponse.success) {
-          bookings = bookingsResponse.data.map((booking) =>
-            bookingApiService.convertBackendBookingToFrontend(booking)
-          );
-        } else {
-          // Other errors (401, 500, etc.)
-          console.error(
-            `Error fetching bookings for trip ${trip.id}:`,
-            bookingsResponse.error
-          );
-        }
-
-        // Convert backend trip to frontend format
-        const tripWithBookings: TripWithBookings = {
-          id: trip.id,
-          parkId: parkId, // Use the parkId from props
-          routeId: trip.to_route.id,
-          destination: trip.to_route.to_city,
-          date: trip.departure_date,
-          unitTime: trip.departure_time,
-          seatCount: trip.total_seats,
-          confirmedBookingsCount: bookings.length,
-          maxParcelsPerVehicle: 10, // Default value since not provided by backend
-          driverId: undefined,
-          driverPhone: undefined,
-          price: trip.price,
-          status: trip.is_cancelled
-            ? "cancelled"
-            : trip.is_completed
-            ? "completed"
-            : "published",
-          payoutStatus: "NotScheduled",
-          isRecurring: false,
-          recurrencePattern: undefined,
-          createdAt: trip.created_at,
-          updatedAt: trip.updated_at || trip.created_at,
-          bookings: bookings,
-          driver:
-            drivers.find((d) => d.routeIds?.includes(trip.to_route.id)) ||
-            undefined,
-        };
-
-        tripsWithBookings.push(tripWithBookings);
+      // When fetching, use backend trip type for list (no frontend conversion).
+      let filtered: any[] = tripResp.data;
+      // date
+      if (selectedDate) {
+        filtered = filtered.filter((t) => t.departure_date === selectedDate);
       }
-
-      setTrips(tripsWithBookings);
+      // route
+      if (selectedRouteId) {
+        filtered = filtered.filter((t) => t.to_route?.id === selectedRouteId);
+      }
+      // departure time (static)
+      filtered = filtered.filter((t) => t.departure_time === departureTime);
+      setTrips(filtered);
     } catch (error) {
-      console.error("Failed to fetch trips with bookings:", error);
-      setError("Failed to fetch trips with bookings");
+      // setError('Failed to fetch trips'); // Removed unused error state
+      setTrips([]);
     } finally {
-      setLoading(false);
+      setLoadingTrips(false);
     }
-  }, [selectedDate, selectedRouteId, departureTime, drivers, isClient, parkId]);
+  }, [selectedDate, selectedRouteId, departureTime, parkId]);
 
   // Fetch routes on mount
   useEffect(() => {
@@ -218,32 +163,92 @@ export function TripBookingsManagerV2({
     }
   }, [isClient, fetchRoutes]);
 
-  // Fetch trips when date, route, or routes change
+  // Fetch trips on load/date/route change
   useEffect(() => {
-    if (isClient && selectedDate && routes.length > 0) {
-      fetchTripsWithBookings();
-    }
-  }, [isClient, selectedDate, selectedRouteId, routes, fetchTripsWithBookings]);
+    if (isClient) fetchTrips();
+  }, [isClient, fetchTrips]);
 
-  // Get trips filtered by date and route
-  const filteredTrips = useMemo(() => {
-    if (!selectedDate || !isClient) {
-      return [];
-    }
-
-    let filtered = trips.filter((trip) => trip.unitTime === departureTime);
-
-    // Filter by route if selected
-    if (selectedRouteId) {
-      filtered = filtered.filter((trip) => trip.routeId === selectedRouteId);
-    }
-
-    return filtered;
-  }, [trips, selectedDate, departureTime, selectedRouteId, isClient]);
-
-  const handleTripClick = (trip: TripWithBookings, bookingId?: string) => {
-    setSelectedTrip(trip);
+  // When a trip is clicked, fetch bookings for that trip
+  const handleTripClick = async (trip: BackendTrip, bookingId?: string) => {
+    setModalLoading(true);
+    setSelectedTrip(null); // clear any previous selection to force modal rerender/loading
     setHighlightedBookingId(bookingId || null);
+    try {
+      let bookingsForTrip = tripBookings[trip.id];
+      if (!bookingsForTrip) {
+        const bookingsResp = await bookingApiService.getTripBookings(trip.id);
+        if (bookingsResp.success && bookingsResp.data) {
+          bookingsForTrip = (bookingsResp.data as BackendBooking[]).map(
+            (bk: BackendBooking) =>
+              bookingApiService.convertBackendBookingToFrontend(bk)
+          );
+          setTripBookings((prev) => ({ ...prev, [trip.id]: bookingsForTrip }));
+        } else {
+          setTripBookings((prev) => ({ ...prev, [trip.id]: [] }));
+        }
+      }
+      const tripWithBookings: TripWithBookings = {
+        id: trip.id,
+        parkId: parkId || "",
+        routeId: trip.to_route?.id || "",
+        destination: trip.to_route?.to_city || "",
+        date: trip.departure_date,
+        unitTime: trip.departure_time,
+        seatCount: trip.total_seats,
+        confirmedBookingsCount: bookingsForTrip?.length || 0,
+        maxParcelsPerVehicle: 10,
+        driverId: undefined,
+        driverPhone: undefined,
+        price: trip.price,
+        status: (trip.is_cancelled
+          ? "cancelled"
+          : trip.is_completed
+          ? "completed"
+          : trip.is_active
+          ? "published"
+          : "draft") as TripWithBookings["status"],
+        payoutStatus: "NotScheduled" as TripWithBookings["payoutStatus"],
+        isRecurring: false,
+        recurrencePattern: undefined,
+        createdAt: trip.created_at || "",
+        updatedAt: trip.updated_at || "",
+        bookings: bookingsForTrip || [],
+        driver: undefined,
+      };
+      setSelectedTrip(tripWithBookings);
+    } catch (error) {
+      setTripBookings((prev) => ({ ...prev, [trip.id]: [] }));
+      setSelectedTrip({
+        id: trip.id,
+        parkId: parkId || "",
+        routeId: trip.to_route?.id || "",
+        destination: trip.to_route?.to_city || "",
+        date: trip.departure_date,
+        unitTime: trip.departure_time,
+        seatCount: trip.total_seats,
+        confirmedBookingsCount: 0,
+        maxParcelsPerVehicle: 10,
+        driverId: undefined,
+        driverPhone: undefined,
+        price: trip.price,
+        status: (trip.is_cancelled
+          ? "cancelled"
+          : trip.is_completed
+          ? "completed"
+          : trip.is_active
+          ? "published"
+          : "draft") as TripWithBookings["status"],
+        payoutStatus: "NotScheduled" as TripWithBookings["payoutStatus"],
+        isRecurring: false,
+        recurrencePattern: undefined,
+        createdAt: trip.created_at || "",
+        updatedAt: trip.updated_at || "",
+        bookings: [],
+        driver: undefined,
+      });
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleCloseManifest = () => {
@@ -259,15 +264,18 @@ export function TripBookingsManagerV2({
 
       if (response.success) {
         // Add to local checked-in set for immediate UI update
-        setLocalCheckedIn((prev) => new Set(prev).add(bookingId));
+        // setLocalCheckedIn((prev) => new Set(prev).add(bookingId)); // Removed localCheckedIn
 
         // Refresh the trip data
-        await fetchTripsWithBookings();
+        await fetchTrips(); // Re-fetch trips to update the list
 
         // Update the selected trip
         const updatedTrip = trips.find((t) => t.id === selectedTrip.id);
         if (updatedTrip) {
-          setSelectedTrip(updatedTrip);
+          setSelectedTrip({
+            ...selectedTrip,
+            bookings: tripBookings[updatedTrip.id] || [], // Update bookings in selectedTrip
+          });
         }
 
         // Show success message
@@ -336,15 +344,13 @@ export function TripBookingsManagerV2({
                 Trip Bookings
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                {loading ? (
+                {loadingTrips ? (
                   "Loading trips..."
-                ) : error ? (
-                  <span className="text-red-600">{error}</span>
                 ) : (
                   <>
-                    {filteredTrips.length} trip
-                    {filteredTrips.length !== 1 ? "s" : ""} for {selectedDate}{" "}
-                    at {departureTime}
+                    {trips.length} trip
+                    {trips.length !== 1 ? "s" : ""} for {selectedDate} at{" "}
+                    {departureTime}
                     {selectedRouteId && (
                       <span>
                         {" "}
@@ -365,12 +371,12 @@ export function TripBookingsManagerV2({
         </div>
 
         <div className="p-6">
-          {loading ? (
+          {loadingTrips ? (
             <div className="text-center py-12">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading trips...</p>
             </div>
-          ) : filteredTrips.length === 0 ? (
+          ) : trips.length === 0 ? (
             <div className="text-center py-12">
               <div className="mx-auto h-24 w-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                 <svg
@@ -401,14 +407,13 @@ export function TripBookingsManagerV2({
             </div>
           ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {filteredTrips.map((trip) => (
+              {trips.map((trip: BackendTrip) => (
                 <TripBookingCard
                   key={trip.id}
                   trip={trip}
-                  bookings={trip.bookings}
+                  bookings={[]}
                   parcels={[]}
                   onClick={() => handleTripClick(trip)}
-                  localCheckedIn={localCheckedIn}
                 />
               ))}
             </div>
@@ -416,18 +421,24 @@ export function TripBookingsManagerV2({
         </div>
       </div>
 
-      {/* Passenger Manifest Modal */}
-      {selectedTrip && (
-        <PassengerManifestModal
-          trip={selectedTrip}
-          bookings={selectedTrip.bookings}
-          onClose={handleCloseManifest}
-          onCheckIn={handleCheckIn}
-          highlightedBookingId={highlightedBookingId}
-          onLocalCheckIn={(bookingId) => {
-            setLocalCheckedIn((prev) => new Set([...prev, bookingId]));
-          }}
-        />
+      {/* Passenger Manifest Modal (on-demand bookings fetch) */}
+      {modalLoading ? (
+        <div className="fixed inset-0 bg-black/10 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-xl shadow-xl">
+            Loading bookings...
+          </div>
+        </div>
+      ) : (
+        selectedTrip && (
+          <PassengerManifestModal
+            trip={selectedTrip}
+            bookings={selectedTrip.bookings}
+            onClose={handleCloseManifest}
+            onCheckIn={handleCheckIn}
+            highlightedBookingId={highlightedBookingId}
+            onLocalCheckIn={() => {}}
+          />
+        )
       )}
 
       {/* Booking Search Modal */}

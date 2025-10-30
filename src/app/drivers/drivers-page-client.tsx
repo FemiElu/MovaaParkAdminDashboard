@@ -75,6 +75,7 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
         }
 
         setRoutes(fetchedRoutes);
+        console.log("SET ROUTES:", fetchedRoutes.length, "routes");
 
         // Now fetch drivers with routes available
         const driversResponse = await driverApiService.getAllDrivers();
@@ -109,20 +110,104 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
 
               console.log("Converting driver:", d);
 
-              // Find the route for this driver based on route_id if available
-              // For now, we'll assign a default route or the first available route
+              // Get the driver's route information from localStorage
               let assignedRoute = "N/A";
-              if (fetchedRoutes.length > 0) {
-                // If we have routes, assign the first one as default
-                // This will be improved when backend provides proper route assignment
-                assignedRoute = fetchedRoutes[0].destination;
+              try {
+                const rawStorage = localStorage.getItem("driver_routes");
+                console.log("=== LOADING DRIVER ROUTE INFO ===");
+                console.log("Driver ID:", d.user.id);
+                console.log("Raw localStorage:", rawStorage);
+
+                const driverRoutes = JSON.parse(rawStorage || "{}");
+                const routeInfo = driverRoutes[d.user.id];
+
                 console.log(
-                  "Assigning driver to route:",
-                  assignedRoute,
-                  "from routes:",
-                  fetchedRoutes.map((r) => r.destination)
+                  `Driver ${d.user.id} route info from storage:`,
+                  routeInfo
                 );
+                console.log(
+                  `Available routes:`,
+                  fetchedRoutes.map((r) => ({ id: r.id, dest: r.destination }))
+                );
+
+                if (routeInfo && routeInfo.routeId) {
+                  // Find the route by ID
+                  const matchedRoute = fetchedRoutes.find(
+                    (r) => r.id === routeInfo.routeId
+                  );
+                  console.log(
+                    `Matching route ID ${routeInfo.routeId}:`,
+                    matchedRoute
+                  );
+
+                  if (matchedRoute) {
+                    assignedRoute = matchedRoute.destination;
+                    console.log(
+                      `✓ Driver ${d.user.first_name} (${d.user.id}) assigned to route: ${assignedRoute}`
+                    );
+                  } else {
+                    console.log(
+                      `✗ Route ID ${routeInfo.routeId} not found in routes list`
+                    );
+                    // Fallback to first route
+                    if (fetchedRoutes.length > 0) {
+                      assignedRoute = fetchedRoutes[0].destination;
+                      console.log(
+                        `Falling back to first route: ${assignedRoute}`
+                      );
+                    }
+                  }
+                } else {
+                  // No route info in storage - try pending mapping by phone
+                  console.log(
+                    `✗ No route info for driver ${d.user.first_name} (${d.user.id})`
+                  );
+                  try {
+                    const pendingRaw =
+                      localStorage.getItem("driver_routes_by_phone") || "{}";
+                    const pending: Record<
+                      string,
+                      { routeId: string; timestamp: number }
+                    > = JSON.parse(pendingRaw);
+                    const byPhone = pending[d.user.phone_number];
+                    if (byPhone?.routeId) {
+                      const matchedRoute = fetchedRoutes.find(
+                        (r) => r.id === byPhone.routeId
+                      );
+                      if (matchedRoute) {
+                        assignedRoute = matchedRoute.destination;
+                        console.log(
+                          `Recovered route by phone for ${d.user.first_name}:`,
+                          assignedRoute
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    console.warn("Failed to read pending route by phone:", e);
+                  }
+
+                  // If still not found, fallback to first route
+                  if (assignedRoute === "N/A" && fetchedRoutes.length > 0) {
+                    assignedRoute = fetchedRoutes[0].destination;
+                    console.log(
+                      `Falling back to first route: ${assignedRoute}`
+                    );
+                  }
+                }
+              } catch (error) {
+                console.warn("Error loading driver route info:", error);
+                // Fallback to first route
+                if (fetchedRoutes.length > 0) {
+                  assignedRoute = fetchedRoutes[0].destination;
+                  console.log(
+                    `Error fallback to first route: ${assignedRoute}`
+                  );
+                }
               }
+
+              console.log(
+                `Final assigned route for ${d.user.first_name}: ${assignedRoute}`
+              );
 
               return {
                 id: d.user.id,
@@ -168,31 +253,46 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
   // Calculate driver counts by route
   const driverCounts = useMemo(() => {
     const counts: Record<string, number> = {};
+    console.log("=== CALCULATING DRIVER COUNTS ===");
     console.log(
-      "Calculating driver counts. Drivers:",
-      drivers.map((d) => ({ name: d.name, qualifiedRoute: d.qualifiedRoute }))
+      "Drivers with routes:",
+      drivers.map((d) => ({
+        name: d.name,
+        qualifiedRoute: d.qualifiedRoute,
+        id: d.id,
+      }))
     );
     console.log(
-      "Routes:",
-      routes.map((r) => ({ id: r.id, destination: r.destination }))
+      "Available routes:",
+      routes.map((r) => ({
+        id: r.id,
+        destination: r.destination,
+      }))
     );
 
     routes.forEach((route) => {
       // Count drivers assigned to this route
       const matchingDrivers = drivers.filter((d) => {
         const matches = d.qualifiedRoute === route.destination;
-        console.log(
-          `Driver ${d.name} (${d.qualifiedRoute}) matches route ${route.destination}? ${matches}`
-        );
+        if (matches) {
+          console.log(
+            `✓ Driver "${d.name}" matches route "${route.destination}"`
+          );
+        }
         return matches;
       });
       counts[route.id] = matchingDrivers.length;
       console.log(
-        `Route ${route.destination} (${route.id}) has ${matchingDrivers.length} drivers`
+        `Route "${route.destination}" has ${matchingDrivers.length} drivers:`,
+        matchingDrivers.map((d) => d.name)
       );
     });
 
-    console.log("Final driver counts:", counts);
+    // Also count "All"
+    counts["all"] = drivers.length;
+    console.log("Total drivers:", drivers.length);
+
+    console.log("=== FINAL COUNTS ===", counts);
     return counts;
   }, [drivers, routes]);
 

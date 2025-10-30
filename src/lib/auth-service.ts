@@ -163,6 +163,24 @@ class AuthService {
       // Debug: Log the raw API response to understand the data structure
       console.log("Raw API response data:", JSON.stringify(data, null, 2));
 
+      // If backend indicates Success but no user payload (e.g., signup), normalize to success: true
+      if (
+        data &&
+        data.message === "Success" &&
+        !(data?.data && data?.data.user)
+      ) {
+        const normalized = {
+          success: true,
+          message:
+            typeof data.data?.message === "string"
+              ? data.data.message
+              : data.message,
+          // surface nested fields if any (but no user/token)
+          ...data.data,
+        } as unknown as T;
+        return normalized;
+      }
+
       // Transform API response format to match AuthResponse interface whenever a user is present
       if (data && data.data && data.data.user) {
         // Transform user data from backend to our expected interface

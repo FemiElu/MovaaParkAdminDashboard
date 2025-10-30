@@ -300,6 +300,50 @@ class BookingApiService {
   }
 
   /**
+   * Get ALL bookings for this park admin (flat list, not trip-centric).
+   */
+  async getAllBookings(token?: string): Promise<BookingListResponse> {
+    try {
+      const response = await this.makeRequest<BookingListResponse>(
+        "/booking/",
+        {
+          method: "GET",
+          token: token,
+        }
+      );
+      // Normalize API response
+      if (response && Array.isArray(response.data)) {
+        return {
+          ...response,
+          success: true,
+          data: response.data,
+        };
+      }
+      if (
+        (response as any).message === "Success" &&
+        Array.isArray((response as any).data)
+      ) {
+        return {
+          success: true,
+          data: (response as any).data,
+        };
+      }
+      return {
+        ...response,
+        success: false,
+        data: [],
+      };
+    } catch (error) {
+      return {
+        success: false,
+        data: [],
+        error:
+          error instanceof Error ? error.message : "Failed to fetch bookings",
+      };
+    }
+  }
+
+  /**
    * Convert backend booking format to frontend format
    */
   convertBackendBookingToFrontend(backendBooking: BackendBooking) {

@@ -132,37 +132,41 @@ export function TripsPageClient({
 
         if (response.success && response.data) {
           // Handle different response formats
-          const tripsArray = Array.isArray(response.data) ? response.data : [];
+          const tripsArray = Array.isArray(response.data)
+            ? response.data
+            : (response as unknown as { data?: unknown[] })?.data || [];
 
           if (tripsArray.length === 0) {
             console.log("No trips found - this is normal for a new system");
             setApiTrips([]);
           } else {
             // Convert API Trip format to expected Trip format
-            const convertedTrips = tripsArray.map((trip: ApiTrip) => ({
-              id: trip.id,
-              parkId: parkId || "default-park",
-              routeId: trip.to_route?.id || "",
-              driverId: trip.driver || "",
-              date: trip.departure_date,
-              unitTime: trip.departure_time,
-              seatCount: trip.total_seats,
-              confirmedBookingsCount: trip.total_seats - trip.available_seats,
-              maxParcelsPerVehicle: 10, // Default value
-              driverPhone: "", // Will be filled from driver data if needed
-              price: trip.price,
-              status: (trip.is_active ? "published" : "draft") as
-                | "published"
-                | "draft"
-                | "live"
-                | "completed"
-                | "cancelled",
-              payoutStatus: "NotScheduled" as const,
-              isRecurring: trip.is_recurrent,
-              parentTripId: undefined,
-              createdAt: trip.created_at || new Date().toISOString(),
-              updatedAt: trip.updated_at || new Date().toISOString(),
-            }));
+            const convertedTrips = (tripsArray as unknown as ApiTrip[]).map(
+              (trip: ApiTrip) => ({
+                id: trip.id,
+                parkId: parkId || "default-park",
+                routeId: trip.to_route?.id || "",
+                driverId: trip.driver || "",
+                date: trip.departure_date,
+                unitTime: trip.departure_time, // always mapped
+                seatCount: trip.total_seats,
+                confirmedBookingsCount: trip.total_seats - trip.available_seats,
+                maxParcelsPerVehicle: 10, // Default value
+                driverPhone: "", // Will be filled from driver data if needed
+                price: trip.price,
+                status: (trip.is_active ? "published" : "draft") as
+                  | "published"
+                  | "draft"
+                  | "live"
+                  | "completed"
+                  | "cancelled",
+                payoutStatus: "NotScheduled" as const,
+                isRecurring: trip.is_recurrent,
+                parentTripId: undefined,
+                createdAt: trip.created_at || new Date().toISOString(),
+                updatedAt: trip.updated_at || new Date().toISOString(),
+              })
+            );
             console.log("Raw API trips:", tripsArray);
             console.log("Converted trips:", convertedTrips);
             setApiTrips(convertedTrips);
@@ -195,28 +199,26 @@ export function TripsPageClient({
       selectedRouteId,
     });
 
-    // Filter by date first
-    let filtered = allTrips.filter((trip) => trip.date === selectedDate);
-    console.log("Trips after date filter:", filtered);
+    // Filter by date only (full day, all times)
+    const normalize = (d: string) => d.split("T")[0];
 
-    // Then filter by time (handle both HH:MM and HH:MM:SS formats)
-    filtered = filtered.filter((trip) => {
-      const tripTime = trip.unitTime.includes(":")
-        ? trip.unitTime.split(":").slice(0, 2).join(":")
-        : trip.unitTime;
-      const expectedTime = departureTime.includes(":")
-        ? departureTime.split(":").slice(0, 2).join(":")
-        : departureTime;
-      return tripTime === expectedTime;
-    });
-    console.log("Trips after time filter:", filtered);
+    // Convert DD/MM/YYYY to YYYY-MM-DD for comparison
+    const normalizeSelectedDate = (dateStr: string) => {
+      if (dateStr.includes("/")) {
+        // DD/MM/YYYY format from date picker
+        const [day, month, year] = dateStr.split("/");
+        return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+      }
+      return normalize(dateStr);
+    };
 
-    // Filter by route if selected
+    let filtered = allTrips.filter(
+      (trip) => normalize(trip.date) === normalizeSelectedDate(selectedDate)
+    );
+    // Only filter by route if a specific one is selected
     if (selectedRouteId) {
       filtered = filtered.filter((trip) => trip.routeId === selectedRouteId);
-      console.log("Trips after route filter:", filtered);
     }
-
     return filtered;
   }, [apiTrips, selectedDate, departureTime, selectedRouteId, isClient]);
 
@@ -724,6 +726,8 @@ export function TripsPageClient({
         drivers={drivers}
         trip={editingTrip || undefined}
         mode={editingTrip ? "edit" : "create"}
+        defaultDate={selectedDate}
+        defaultRouteId={selectedRouteId}
       />
 
       {/* Mobile Floating Action Button */}

@@ -8,6 +8,93 @@ import { Button } from "@/components/ui/button";
 import { RouteConfig } from "@/types";
 import { routeApiService } from "@/lib/route-api-service";
 
+// Helper function to compress images
+async function compressImage(file: File, maxSizeMB = 5): Promise<File> {
+  const maxSize = maxSizeMB * 1024 * 1024;
+
+  // Only compress if file is too large
+  if (file.size <= maxSize) {
+    return file;
+  }
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        // Calculate new dimensions to reduce file size
+        let width = img.width;
+        let height = img.height;
+
+        // If image is very large, scale it down
+        const maxDimension = 2048;
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          } else {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Failed to get canvas context"));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to blob with quality adjustment
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error("Failed to create blob"));
+              return;
+            }
+            // Check if blob is still too large
+            if (blob.size > maxSize) {
+              // Try with lower quality
+              canvas.toBlob(
+                (finalBlob) => {
+                  if (!finalBlob) {
+                    reject(
+                      new Error("Failed to create blob with lower quality")
+                    );
+                    return;
+                  }
+                  const compressedFile = new File([finalBlob], file.name, {
+                    type: file.type,
+                    lastModified: Date.now(),
+                  });
+                  resolve(compressedFile);
+                },
+                file.type,
+                0.5 // Lower quality
+              );
+            } else {
+              const compressedFile = new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            }
+          },
+          file.type,
+          0.7 // Start with 70% quality
+        );
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 interface DriverFormProps {
   initialData?: Partial<DriverFormData>;
   onSubmit: (data: DriverFormData) => Promise<void>;
@@ -216,9 +303,34 @@ export default function DriverForm({
             id="driversLicenseFile"
             accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            onChange={(e) => {
+            onChange={async (e) => {
               const file = e.target.files?.[0];
               if (file) {
+                // Check file size (max 5MB = 5 * 1024 * 1024 bytes)
+                const maxSize = 5 * 1024 * 1024; // 5MB
+                if (file.size > maxSize) {
+                  // Try to compress images
+                  if (file.type.startsWith("image/")) {
+                    try {
+                      const compressed = await compressImage(file);
+                      setValue("driversLicenseFile", compressed);
+                      trigger("driversLicenseFile");
+                      return;
+                    } catch (error) {
+                      console.error("Image compression failed:", error);
+                    }
+                  }
+
+                  alert(
+                    `File size is too large. Please select a file smaller than 5MB. Current size: ${(
+                      file.size /
+                      1024 /
+                      1024
+                    ).toFixed(2)}MB`
+                  );
+                  e.target.value = ""; // Clear the input
+                  return;
+                }
                 setValue("driversLicenseFile", file);
                 // Trigger validation for this field
                 trigger("driversLicenseFile");
@@ -227,7 +339,7 @@ export default function DriverForm({
           />
           <p className="mt-1 text-sm text-gray-500">
             Upload a scanned copy of the driver&apos;s license (PDF, DOC, DOCX,
-            JPG, PNG)
+            JPG, PNG) - Max size: 5MB
           </p>
           {errors.driversLicenseFile && (
             <p className="mt-1 text-sm text-red-600">

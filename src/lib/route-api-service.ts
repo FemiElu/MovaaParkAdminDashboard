@@ -137,17 +137,74 @@ class RouteApiService {
         method: "GET",
       });
 
-      // Normalize backend shape { message, data, errors }
+      console.log(
+        "getAllRoutes - raw response:",
+        JSON.stringify(response, null, 2)
+      );
+      console.log("getAllRoutes - response?.data type:", typeof response?.data);
+      console.log(
+        "getAllRoutes - response?.data is array?:",
+        Array.isArray(response?.data)
+      );
+      console.log("getAllRoutes - response?.message:", response?.message);
+
+      // Check if data exists but isn't an array
+      if (response?.data && !Array.isArray(response.data)) {
+        console.warn("getAllRoutes - data is not an array:", response.data);
+        console.warn(
+          "getAllRoutes - data value:",
+          JSON.stringify(response.data, null, 2)
+        );
+
+        // Try to extract routes from nested structures
+        if (response.data && typeof response.data === "object") {
+          const dataObj = response.data as Record<string, unknown>;
+          console.warn("getAllRoutes - checking for nested routes property...");
+          if (Array.isArray(dataObj.routes)) {
+            console.log("getAllRoutes - found nested 'routes' array");
+            response.data = dataObj.routes;
+          } else if (Array.isArray(dataObj.data)) {
+            console.log("getAllRoutes - found nested 'data' array");
+            response.data = dataObj.data;
+          }
+        }
+      }
+
+      // Normalize backend shape
+      // Backend can return either:
+      // 1. { message: "Success", data: [...] } format
+      // 2. { count: X, data: [...], total_pages: X, current_page: X } format (pagination)
       const normalized: RouteListResponse = {
-        success: response?.message === "Success",
+        success:
+          response?.message === "Success" ||
+          (response?.data !== undefined && Array.isArray(response.data)),
         data: Array.isArray(response?.data) ? (response.data as Route[]) : [],
-        total: undefined,
-        page: undefined,
+        total: response?.count,
+        page: response?.current_page,
         limit: undefined,
       };
 
+      console.log(
+        "getAllRoutes - normalized response:",
+        JSON.stringify(normalized, null, 2)
+      );
+      console.log(`getAllRoutes - found ${normalized.data.length} routes`);
+
+      // Log each route's key fields for debugging
+      if (normalized.data.length > 0) {
+        normalized.data.forEach((route, index) => {
+          console.log(`Route ${index}:`, {
+            id: route.id,
+            to_city: route.to_city,
+            to_state: route.to_state,
+            from_state: route.from_state,
+          });
+        });
+      }
+
       return normalized;
-    } catch {
+    } catch (error) {
+      console.error("getAllRoutes - error:", error);
       return {
         success: false,
         data: [],

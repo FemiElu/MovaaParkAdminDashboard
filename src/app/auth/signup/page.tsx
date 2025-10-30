@@ -98,7 +98,10 @@ function SignupForm() {
       setSuccess("Creating your account...");
       const response = await authService.signup(signupData);
 
+      console.log("Signup response:", response);
+
       if (response.success) {
+        console.log("Signup successful, redirecting to verify page...");
         setSuccess(
           "Account created successfully! Please check your phone for OTP verification."
         );
@@ -111,6 +114,7 @@ function SignupForm() {
           );
         }, 2000);
       } else {
+        console.error("Signup failed:", response.error);
         setError(response.error || "Registration failed");
       }
     } catch (error) {

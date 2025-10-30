@@ -188,6 +188,43 @@ class TripApiService {
         } as T;
       }
 
+      // Handle paginated list responses: { count, total_pages?, current_page?, data: [...] }
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        Array.isArray((data as { data?: unknown[] }).data) &&
+        (typeof (data as { count?: number; current_page?: number }).count ===
+          "number" ||
+          typeof (data as { current_page?: number }).current_page !==
+            "undefined")
+      ) {
+        const paginated = data as {
+          data: Trip[];
+          count?: number;
+          current_page?: number;
+          limit?: number;
+        };
+        return {
+          success: true,
+          data: paginated.data,
+          total: paginated.count,
+          page: paginated.current_page,
+          limit: paginated.limit,
+        } as T;
+      }
+
+      // Handle direct array under data without message
+      if (
+        typeof data === "object" &&
+        data !== null &&
+        Array.isArray((data as { data?: unknown[] }).data)
+      ) {
+        return {
+          success: true,
+          data: (data as { data: Trip[] }).data,
+        } as T;
+      }
+
       // Handle direct data response (for single trip details)
       if (data.id && data.to_route) {
         return {

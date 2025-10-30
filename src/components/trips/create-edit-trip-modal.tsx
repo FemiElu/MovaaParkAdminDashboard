@@ -35,6 +35,8 @@ interface CreateEditTripModalProps {
   }>;
   trip?: Trip; // For editing
   mode?: "create" | "edit";
+  defaultDate?: string; // Preselect date from parent page
+  defaultRouteId?: string | null; // Preselect route from parent page
 }
 
 export function CreateEditTripModal({
@@ -45,6 +47,8 @@ export function CreateEditTripModal({
   drivers,
   trip,
   mode = "create",
+  defaultDate,
+  defaultRouteId,
 }: CreateEditTripModalProps) {
   const [formData, setFormData] = useState<TripFormData>({
     routeId: "",
@@ -196,8 +200,8 @@ export function CreateEditTripModal({
       } else {
         // Reset to defaults for create mode
         setFormData({
-          routeId: "",
-          date: "",
+          routeId: defaultRouteId || "",
+          date: defaultDate || "",
           unitTime: "06:00",
           seatCount: 18,
           price: 0,
@@ -210,7 +214,7 @@ export function CreateEditTripModal({
       }
       setErrors({});
     }
-  }, [isOpen, mode, trip, apiDrivers]);
+  }, [isOpen, mode, trip, apiDrivers, defaultDate, defaultRouteId]);
 
   // Update form data when drivers are loaded and we're in edit mode
   useEffect(() => {

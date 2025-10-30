@@ -22,20 +22,33 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
 
   const fetchRoutes = useCallback(async () => {
     try {
+      console.log("fetchRoutes - starting...");
       const response = await routeApiService.getAllRoutes();
+      console.log("fetchRoutes - response:", response);
+
       if (response.success) {
+        console.log(
+          "fetchRoutes - success, data length:",
+          response.data.length
+        );
         // Convert API Route format to RouteConfig format
-        const convertedRoutes = response.data.map((route) => ({
-          id: route.id,
-          parkId: parkId || "default-park",
-          destination: route.to_city,
-          destinationPark: route.to_state,
-          from_state: route.from_state,
-          isActive: true,
-          createdAt: route.created_at || new Date().toISOString(),
-          updatedAt: route.updated_at || new Date().toISOString(),
-        }));
+        const convertedRoutes = response.data.map((route) => {
+          console.log("Converting route:", route);
+          return {
+            id: route.id,
+            parkId: parkId || "default-park",
+            destination: route.to_city,
+            destinationPark: route.to_state,
+            from_state: route.from_state,
+            isActive: true,
+            createdAt: route.created_at || new Date().toISOString(),
+            updatedAt: route.updated_at || new Date().toISOString(),
+          };
+        });
+        console.log("fetchRoutes - converted routes:", convertedRoutes);
         setRoutes(convertedRoutes);
+      } else {
+        console.error("fetchRoutes - response not successful:", response);
       }
     } catch (error) {
       console.error("Failed to fetch routes:", error);
