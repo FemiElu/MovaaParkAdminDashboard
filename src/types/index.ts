@@ -218,11 +218,6 @@ export interface PaginatedResponse<T> {
 }
 
 // Form validation types
-export interface RouteFormData {
-  destination: string;
-  destinationPark?: string;
-  isActive: boolean;
-}
 
 export interface DriverFormData {
   name: string;

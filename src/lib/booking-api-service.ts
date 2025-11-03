@@ -229,23 +229,34 @@ class BookingApiService {
     token?: string
   ): Promise<BookingListResponse> {
     try {
-      const raw = await this.makeRequest<any>(
+      const raw = await this.makeRequest<unknown>(
         `/admin-booking/list-booking/${tripId}/`,
         {
           method: "GET",
           token: token,
         }
       );
-      // Normalize shape: use raw.data.data (paginated) or raw.data (array)
-      const bookingsArr = Array.isArray(raw.data)
-        ? raw.data
-        : Array.isArray(raw.data?.data)
-        ? raw.data.data
-        : [];
+      // Type guard for expected response shape
+      let bookingsArr: BackendBooking[] = [];
+      let success = false;
+      if (
+        raw && typeof raw === "object" &&
+        "data" in raw && Array.isArray((raw as { data: unknown }).data)
+      ) {
+        bookingsArr = (raw as { data: BackendBooking[] }).data;
+        success = true;
+      } else if (
+        raw && typeof raw === "object" &&
+        "data" in raw && typeof (raw as { data: unknown }).data === "object" &&
+        Array.isArray((raw as { data: { data: BackendBooking[] } }).data.data)
+      ) {
+        bookingsArr = (raw as { data: { data: BackendBooking[] } }).data.data;
+        success = true;
+      }
       return {
-        ...raw,
+        ...(typeof raw === "object" ? raw : {}),
         data: bookingsArr,
-        success: true,
+        success,
       };
     } catch (error) {
       return {
@@ -333,12 +344,13 @@ class BookingApiService {
         };
       }
       if (
-        (response as any).message === "Success" &&
-        Array.isArray((response as any).data)
+        response && typeof response === "object" &&
+        "message" in response && (response as { message: string }).message === "Success" &&
+        "data" in response && Array.isArray((response as { data: unknown }).data)
       ) {
         return {
           success: true,
-          data: (response as any).data,
+          data: (response as { data: BackendBooking[] }).data,
         };
       }
       return {
@@ -395,7 +407,7 @@ class BookingApiService {
           toState: backendBooking.trip.to_route.to_state,
           toCity: backendBooking.trip.to_route.to_city,
           busStop: backendBooking.trip.to_route.bus_stop,
-          terminal: backendBooking.trip.to_route.terminal,
+          terminal: backendBooking.trip.to_route.terminal ?? "",
         },
         departureDate: backendBooking.trip.departure_date,
         departureTime: backendBooking.trip.departure_time,
@@ -405,7 +417,10 @@ class BookingApiService {
           address: backendBooking.trip.bus_terminal.address,
           city: backendBooking.trip.bus_terminal.city,
           state: backendBooking.trip.bus_terminal.state,
-          location: backendBooking.trip.bus_terminal.location,
+          location:
+            typeof backendBooking.trip.bus_terminal.location === "object"
+              ? backendBooking.trip.bus_terminal.location
+              : { latitude: 0, longitude: 0 },
         },
         totalSeats: backendBooking.trip.total_seats,
         isFull: backendBooking.trip.is_full,
@@ -416,7 +431,21 @@ class BookingApiService {
         price: backendBooking.trip.price,
         createdAt: backendBooking.trip.created_at,
       },
-      user: backendBooking.user,
+      user: {
+        ...backendBooking.user,
+        address: backendBooking.user.address ?? "",
+        is_email_generated: backendBooking.user.is_email_generated ?? false,
+        avatar: backendBooking.user.avatar ?? "",
+        city: backendBooking.user.city ?? "",
+        state: backendBooking.user.state ?? "",
+        country: backendBooking.user.country ?? "",
+        user_type: Array.isArray(backendBooking.user.user_type)
+          ? backendBooking.user.user_type.join(", ")
+          : backendBooking.user.user_type ?? "",
+        next_of_kin: Array.isArray(backendBooking.user.next_of_kin)
+          ? backendBooking.user.next_of_kin.map(k => k.full_name).join(", ")
+          : backendBooking.user.next_of_kin ?? "",
+      },
     };
   }
 }

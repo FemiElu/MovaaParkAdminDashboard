@@ -7,7 +7,6 @@ import { MobileHeader } from "@/components/dashboard/mobile-header";
 import { MobileBottomNav } from "@/components/dashboard/mobile-bottom-nav";
 import { TripBookingsManagerV2 as TripBookingsManager } from "@/components/bookings/trip-bookings-manager-v2";
 import { ConsolidatedBookingStats } from "@/components/bookings/consolidated-booking-stats";
-import { tripsStore } from "@/lib/trips-store";
 import { AuthGuard } from "@/components/auth/auth-guard";
 
 export default function LiveBookingsPage() {
@@ -34,10 +33,7 @@ export default function LiveBookingsPage() {
             <ConsolidatedBookingStats parkId={parkId} />
 
             {/* Trip Bookings Manager */}
-            <TripBookingsManager
-              parkId={parkId}
-              drivers={tripsStore.getDrivers(parkId)}
-            />
+            <TripBookingsManager parkId={parkId} />
           </main>
         </div>
 

@@ -299,8 +299,7 @@ export function TripBookingsManager({
       {/* Booking Search Modal */}
       {showSearchModal && (
         <BookingSearchModal
-          parkId={parkId}
-          selectedDate={selectedDate}
+          bookings={filteredTrips.flatMap(trip => tripsStore.getBookings(trip.id))}
           onClose={() => setShowSearchModal(false)}
           onBookingFound={(booking) => {
             // Find the trip for this booking and open manifest with highlighted passenger

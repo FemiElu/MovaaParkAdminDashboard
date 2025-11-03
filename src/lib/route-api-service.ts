@@ -133,6 +133,8 @@ class RouteApiService {
         message: string;
         data: unknown[];
         errors: unknown;
+        count?: number;
+        current_page?: number;
       }>("/admin-route/", {
         method: "GET",
       });
