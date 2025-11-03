@@ -13,15 +13,13 @@ import {
 import { QRScanner } from "./qr-scanner";
 
 interface BookingSearchModalProps {
-  parkId: string;
-  selectedDate: string;
+  bookings: Booking[];
   onClose: () => void;
   onBookingFound: (booking: Booking) => void;
 }
 
 export function BookingSearchModal({
-  parkId,
-  selectedDate,
+  bookings,
   onClose,
   onBookingFound,
 }: BookingSearchModalProps) {
@@ -32,43 +30,29 @@ export function BookingSearchModal({
   const [searchType, setSearchType] = useState<"manual" | "qr">("manual");
   const [showQRScanner, setShowQRScanner] = useState(false);
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     if (!searchQuery.trim()) {
       setError("Please enter a search term");
+      setSearchResults([]);
       return;
     }
-
     setIsSearching(true);
     setError(null);
-    setSearchResults([]);
-
-    try {
-      // Search for bookings by ID, name, or phone
-      const response = await fetch(
-        `/api/bookings/search?parkId=${parkId}&date=${selectedDate}&query=${encodeURIComponent(
-          searchQuery
-        )}`
-      );
-
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setSearchResults(result.data || []);
-          if (result.data.length === 0) {
-            setError("No bookings found matching your search");
-          }
-        } else {
-          setError(result.error || "Search failed");
-        }
-      } else {
-        setError("Failed to search bookings");
-      }
-    } catch (err) {
-      console.error("Search error:", err);
-      setError("Network error - please try again");
-    } finally {
-      setIsSearching(false);
-    }
+    // Case-insensitive, multi-field substring search
+    const q = searchQuery.trim().toLowerCase();
+    const results = bookings.filter(
+      (b) =>
+        b.passengerName?.toLowerCase().includes(q) ||
+        b.passengerPhone?.toLowerCase().includes(q) ||
+        String(b.seatNumber).toLowerCase().includes(q) ||
+        b.bookingId?.toLowerCase()?.includes(q) ||
+        b.nokName?.toLowerCase().includes(q) ||
+        b.nokPhone?.toLowerCase().includes(q)
+    );
+    setSearchResults(results);
+    if (results.length === 0)
+      setError("No bookings found matching your search");
+    setIsSearching(false);
   };
 
   const handleQRScan = () => {
@@ -94,26 +78,30 @@ export function BookingSearchModal({
   };
 
   const formatBookingInfo = (booking: Booking) => {
+    const tripDate = booking.trip?.departureDate || "Unknown";
+    const tripTime = booking.trip?.departureTime || "";
     return {
       passenger: booking.passengerName,
       phone: booking.passengerPhone,
       seat: booking.seatNumber,
-      amount: booking.amountPaid,
-      status: booking.checkedIn ? "Checked In" : "Pending Check-in",
-      tripDate: booking.tripId.split("_")[2] || "Unknown", // Extract date from trip ID
+      amount: booking.amountPaid || 0,
+      status: booking.isCheckedIn ? "Checked In" : "Pending Check-in",
+      tripDate,
+      tripTime,
     };
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-[100%] sm:max-w-xl md:max-w-2xl max-h-[92vh] sm:max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-200">
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
               Search Passengers
             </h2>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
               Find passengers by Ticket ID, name, or phone number
             </p>
           </div>
@@ -126,12 +114,12 @@ export function BookingSearchModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-6 overflow-y-auto">
           {/* Search Type Toggle */}
           <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
             <button
               onClick={() => setSearchType("manual")}
-              className={`flex-1 flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 flex items-center justify-center px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 searchType === "manual"
                   ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-600 hover:text-gray-900"
@@ -142,7 +130,7 @@ export function BookingSearchModal({
             </button>
             <button
               onClick={() => setSearchType("qr")}
-              className={`flex-1 flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              className={`flex-1 flex items-center justify-center px-3 sm:px-4 py-2 text-sm font-medium rounded-md transition-colors ${
                 searchType === "qr"
                   ? "bg-white text-gray-900 shadow-sm"
                   : "text-gray-600 hover:text-gray-900"
@@ -266,22 +254,22 @@ export function BookingSearchModal({
                       className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 cursor-pointer transition-colors border border-gray-200"
                     >
                       <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center flex-1">
+                        <div className="flex items-center flex-1 min-w-0">
                           <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <UserIcon className="h-5 w-5 text-green-700" />
                           </div>
                           <div className="ml-3 flex-1 min-w-0">
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-medium text-gray-900 truncate">
                               {info.passenger}
                             </div>
-                            <div className="text-xs text-gray-500">
-                              Seat {info.seat} • Trip: {info.tripDate}
+                            <div className="text-xs text-gray-500 truncate">
+                              Seat {info.seat} • {info.tripDate} {info.tripTime}
                             </div>
                           </div>
                         </div>
                         <div className="text-right ml-3">
                           <div className="text-sm font-medium text-gray-900">
-                            ₦{info.amount.toLocaleString()}
+                            ₦{Number(info.amount || 0).toLocaleString()}
                           </div>
                           <div
                             className={`text-xs font-medium ${
@@ -306,7 +294,7 @@ export function BookingSearchModal({
 
                       {/* Status Badge - No separate buttons, click whole card */}
                       <div className="mt-3 pt-3 border-t">
-                        {booking.checkedIn ? (
+                        {booking.isCheckedIn ? (
                           <div className="text-center py-2 text-sm font-medium text-green-600 bg-green-50 rounded-md">
                             ✓ Already Checked In
                           </div>
@@ -329,7 +317,7 @@ export function BookingSearchModal({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex justify-end px-4 sm:px-6 py-4 border-t border-gray-200 bg-gray-50">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 transition-colors"

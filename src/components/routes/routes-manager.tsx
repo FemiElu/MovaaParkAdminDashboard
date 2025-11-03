@@ -6,6 +6,7 @@ import { RouteCard } from "./route-card";
 import { RouteForm } from "./route-form";
 import { routeApiService } from "@/lib/route-api-service";
 import { loadDriversFromStorage } from "@/lib/client-driver-storage";
+import { normalizeString } from "@/lib/utils";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
 interface RoutesManagerProps {
@@ -34,16 +35,18 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
         // Convert API Route format to RouteConfig format
         const convertedRoutes = response.data.map((route) => {
           console.log("Converting route:", route);
+          // prefer to_city as destination but fallback to to_state or other
+          const destination = route.to_city || route.to_state || route.to_city || "";
           return {
             id: route.id,
             parkId: parkId || "default-park",
-            destination: route.to_city,
-            destinationPark: route.to_state,
+            destination,
+            destinationPark: route.to_state || undefined,
             from_state: route.from_state,
             isActive: true,
             createdAt: route.created_at || new Date().toISOString(),
             updatedAt: route.updated_at || new Date().toISOString(),
-          };
+          } as RouteConfig;
         });
         console.log("fetchRoutes - converted routes:", convertedRoutes);
         setRoutes(convertedRoutes);
@@ -237,18 +240,13 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
             })
             .map((route) => {
               // Calculate driver count by matching qualified routes with route destination
+              // Robust matching: normalize both strings and check contains/both ways
+              const normalizedRoute = normalizeString(route.destination || route.destinationPark || "");
               const driverCount = drivers.filter((d) => {
-                // Check if driver's qualified route matches the route destination
-                // The qualifiedRoute should contain the route destination name
-                return (
-                  d.qualifiedRoute === route.destination ||
-                  d.qualifiedRoute
-                    ?.toLowerCase()
-                    .includes(route.destination.toLowerCase()) ||
-                  d.qualifiedRoute
-                    ?.toLowerCase()
-                    .includes(route.destinationPark?.toLowerCase() || "")
-                );
+                const q = normalizeString(d.qualifiedRoute || "");
+                if (!q || !normalizedRoute) return false;
+                // match if driver qualified contains route or route contains driver (for small/long names)
+                return q.includes(normalizedRoute) || normalizedRoute.includes(q);
               }).length;
 
               console.log(

@@ -1,8 +1,10 @@
 "use client";
 
+import React from "react";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DashboardStats } from "@/types";
+import { adminStatService } from "@/lib/admin-stat-api-service";
 
 interface DashboardOverviewProps {
   parkId?: string;
@@ -11,29 +13,39 @@ interface DashboardOverviewProps {
 export function DashboardOverview({ parkId }: DashboardOverviewProps) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    // Mock data for development
-    // In production, this would fetch real data
-    const mockStats: DashboardStats = {
-      todayBookings: 12,
-      todayRevenue: 45000,
-      activeRoutes: 5,
-      totalDrivers: 8,
-      weeklyBookings: [8, 12, 15, 10, 18, 22, 16],
-      weeklyRevenue: [32000, 45000, 56000, 38000, 67000, 82000, 59000],
-      topRoutes: [
-        { destination: "Ibadan", bookings: 45, revenue: 180000 },
-        { destination: "Abuja", bookings: 38, revenue: 228000 },
-        { destination: "Port Harcourt", bookings: 22, revenue: 132000 },
-      ],
-    };
+    let mounted = true;
 
-    setTimeout(() => {
-      setStats(mockStats);
-      setLoading(false);
-    }, 1000);
+    async function load() {
+      setLoading(true);
+      try {
+        const resp = await adminStatService.getStats(parkId);
+        if (!mounted) return;
+        if (resp.success && resp.data) {
+          setStats(resp.data);
+          setError(null);
+        } else {
+          const msg = resp.error || resp.message || "Failed to load dashboard stats";
+          console.error("Failed to load stats:", msg);
+          setError(msg);
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("Unexpected error loading stats:", err);
+        if (mounted) setError(msg);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
   }, [parkId]);
 
   if (loading) {
@@ -46,6 +58,31 @@ export function DashboardOverview({ parkId }: DashboardOverviewProps) {
               <div className="h-8 bg-gray-200 rounded w-1/2"></div>
             </div>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="animate-pulse">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow p-4 sm:p-6">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+              <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+          <strong>Error:</strong> {error}
         </div>
       </div>
     );
@@ -87,7 +124,7 @@ export function DashboardOverview({ parkId }: DashboardOverviewProps) {
                 Today&apos;s Revenue
               </p>
               <p className="text-xl sm:text-2xl lg:text-3xl leading-tight font-semibold text-gray-900">
-                ₦{stats.todayRevenue.toLocaleString()}
+                ₦{(stats.todayRevenue ?? 0).toLocaleString()}
               </p>
             </div>
           </div>
@@ -155,13 +192,10 @@ export function DashboardOverview({ parkId }: DashboardOverviewProps) {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">
-                    ₦{route.revenue.toLocaleString()}
+                    ₦{(route.revenue ?? 0).toLocaleString()}
                   </p>
                   <p className="text-xs text-gray-500">
-                    ₦
-                    {Math.round(
-                      route.revenue / route.bookings
-                    ).toLocaleString()}
+                    ₦{(route.bookings ? Math.round((route.revenue ?? 0) / route.bookings) : 0).toLocaleString()}
                     /booking
                   </p>
                 </div>

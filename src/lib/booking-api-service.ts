@@ -3,6 +3,8 @@
  * Handles communication with backend booking APIs
  */
 
+import type { Booking } from "@/types";
+
 export interface BackendBooking {
   id: string;
   trip: {
@@ -14,7 +16,7 @@ export interface BackendBooking {
       to_state: string;
       to_city: string;
       bus_stop: string;
-      terminal: string;
+      terminal?: string;
     };
     departure_date: string;
     departure_time: string;
@@ -24,10 +26,7 @@ export interface BackendBooking {
       address: string;
       city: string;
       state: string;
-      location: {
-        latitude: number;
-        longitude: number;
-      };
+      location: string; // Was object, actually string in API
     };
     total_seats: number;
     is_full: boolean;
@@ -44,15 +43,20 @@ export interface BackendBooking {
     last_name: string;
     phone_number: string;
     email: string;
-    address: string;
-    is_email_generated: boolean;
-    avatar: string;
-    city: string;
-    state: string;
-    country: string;
-    user_type: string;
+    address?: string | null;
+    is_email_generated?: boolean;
+    avatar?: string;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    user_type: string[];
     is_active: boolean;
-    next_of_kin: string;
+    next_of_kin: Array<{
+      full_name: string;
+      phone_number: string;
+      address?: string;
+      is_default?: boolean;
+    }>;
   };
   qr_code: string;
   created_at: string;
@@ -66,9 +70,9 @@ export interface BackendBooking {
   is_paid: boolean;
   is_cancelled: boolean;
   is_checked_in: boolean;
-  created_by: string;
-  updated_by: string;
-  deleted_by: string | null;
+  created_by?: string;
+  updated_by?: string;
+  deleted_by?: string | null;
   bus_terminal: string;
 }
 
@@ -225,15 +229,24 @@ class BookingApiService {
     token?: string
   ): Promise<BookingListResponse> {
     try {
-      const response = await this.makeRequest<BookingListResponse>(
+      const raw = await this.makeRequest<any>(
         `/admin-booking/list-booking/${tripId}/`,
         {
           method: "GET",
           token: token,
         }
       );
-
-      return response;
+      // Normalize shape: use raw.data.data (paginated) or raw.data (array)
+      const bookingsArr = Array.isArray(raw.data)
+        ? raw.data
+        : Array.isArray(raw.data?.data)
+        ? raw.data.data
+        : [];
+      return {
+        ...raw,
+        data: bookingsArr,
+        success: true,
+      };
     } catch (error) {
       return {
         success: false,
@@ -346,18 +359,20 @@ class BookingApiService {
   /**
    * Convert backend booking format to frontend format
    */
-  convertBackendBookingToFrontend(backendBooking: BackendBooking) {
+  convertBackendBookingToFrontend(backendBooking: BackendBooking): Booking {
+    const kin = backendBooking.user.next_of_kin?.[0];
     return {
       id: backendBooking.id,
       tripId: backendBooking.trip.id,
       passengerName: `${backendBooking.user.first_name} ${backendBooking.user.last_name}`,
       passengerPhone: backendBooking.user.phone_number,
-      nokName: backendBooking.user.next_of_kin,
-      nokPhone: "", // Not provided in backend response
-      nokAddress: backendBooking.user.address,
+      nokName: kin?.full_name || "",
+      nokPhone: kin?.phone_number || "",
+      nokAddress: `${backendBooking.user.address ?? ""}`,
       seatNumber:
-        parseInt(backendBooking.seat_number.replace(/\D/g, "")) ||
-        backendBooking.slot,
+        Number.parseInt(
+          (backendBooking.seat_number || "").replace(/\D/g, "")
+        ) || backendBooking.slot,
       amountPaid: backendBooking.price,
       paymentStatus: backendBooking.payment_status as
         | "pending"
@@ -371,7 +386,6 @@ class BookingApiService {
       bookingId: backendBooking.booking_id,
       createdAt: backendBooking.created_at,
       updatedAt: backendBooking.updated_at,
-      // Additional fields from backend
       trip: {
         id: backendBooking.trip.id,
         fromState: backendBooking.trip.from_state,
