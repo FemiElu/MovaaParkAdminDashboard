@@ -45,6 +45,19 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Normalize passenger payment state. Backend may return `is_paid: boolean`
+  // or `payment_status: string` (e.g. 'PAID' | 'NOT_PAID'). Treat only
+  // explicitly paid bookings as confirmed for revenue and confirmed-seat metrics.
+  const isPassengerPaid = (p: Passenger | unknown): boolean => {
+    const obj = p as Record<string, unknown>;
+    if (typeof obj["is_paid"] === "boolean") return obj["is_paid"] as boolean;
+    if (typeof obj["payment_status"] === "string") {
+      return (obj["payment_status"] as string).toUpperCase() === "PAID";
+    }
+    if (obj["is_paid"] === "true" || obj["is_paid"] === "1") return true;
+    return false;
+  };
+
   useEffect(() => {
     const fetchTripDetails = async () => {
       try {
@@ -195,6 +208,15 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
     );
   }
 
+
+  // compute derived passenger counts using normalized payment status
+  const confirmedPassengers = passengers.filter(isPassengerPaid);
+  const reservedPassengers = passengers.filter((p) => !isPassengerPaid(p));
+  const confirmedCount = confirmedPassengers.length;
+  const reservedCount = reservedPassengers.length;
+  const confirmedPercent = trip ? Math.round((confirmedCount / trip.total_seats) * 100) : 0;
+  const paidRevenue = trip ? confirmedCount * trip.price : 0;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto p-4 sm:p-6">
@@ -304,28 +326,20 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
             </div>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Passengers</span>
+                <span className="text-sm text-gray-600">Confirmed seats</span>
                 <span className="font-semibold text-gray-900">
-                  {trip.total_seats - trip.available_seats} / {trip.total_seats}
+                  {confirmedCount} / {trip.total_seats}
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-purple-600 h-2 rounded-full"
-                  style={{
-                    width: `${
-                      ((trip.total_seats - trip.available_seats) /
-                        trip.total_seats) *
-                      100
-                    }%`,
-                  }}
+                  style={{ width: `${Math.min(100, Math.max(0, confirmedPercent))}%` }}
                 />
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Available</span>
-                <span className="font-semibold text-gray-900">
-                  {trip.available_seats} seats
-                </span>
+                <span className="text-sm text-gray-600">Reserved (not paid)</span>
+                <span className="font-semibold text-gray-900">{reservedCount} seats</span>
               </div>
             </div>
           </div>
@@ -346,14 +360,8 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Total Revenue</span>
-                <span className="font-semibold text-gray-900">
-                  ₦
-                  {(
-                    (trip.total_seats - trip.available_seats) *
-                    trip.price
-                  ).toLocaleString()}
-                </span>
+                <span className="text-sm text-gray-600">Total Revenue (confirmed)</span>
+                <span className="font-semibold text-gray-900">₦{paidRevenue.toLocaleString()}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-gray-600">Potential Revenue</span>
@@ -405,7 +413,7 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
         <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-20 sm:mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h3 className="text-lg font-semibold text-gray-900">
-              Passengers ({passengers.length})
+              Passengers (Confirmed: {confirmedCount}, Reserved: {reservedCount})
             </h3>
             <Button
               onClick={() => window.location.reload()}
@@ -453,11 +461,15 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {passenger.name}
+                            {passenger.first_name} {passenger.last_name}
                           </div>
+                       
                           <div className="text-sm text-gray-500">
-                            {passenger.phone}
-                          </div>
+                          {passenger.phone_number
+                            ?.replace(/^(\+?234|234)/, "0")
+                            .replace(/\s+/g, "")}
+                        </div>
+
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -465,28 +477,29 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
                           Seat {passenger.seat_number}
                         </span>
                       </td>
+                     <td className="px-6 py-4 whitespace-nowrap">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      passenger.boarding_status === "boarded"
+                        ? "bg-green-100 text-green-800"
+                        : passenger.boarding_status === "checked_in"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {passenger.boarding_status?.replace("_", " ") || "N/A"}
+                  </span>
+                </td>
+
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
                           className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            passenger.boarding_status === "boarded"
-                              ? "bg-green-100 text-green-800"
-                              : passenger.boarding_status === "checked_in"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {passenger.boarding_status.replace("_", " ")}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            passenger.is_paid
+                            isPassengerPaid(passenger)
                               ? "bg-green-100 text-green-800"
                               : "bg-red-100 text-red-800"
                           }`}
                         >
-                          {passenger.is_paid ? "Paid" : "Pending"}
+                          {isPassengerPaid(passenger) ? "Paid" : "Pending"}
                         </span>
                       </td>
                     </tr>

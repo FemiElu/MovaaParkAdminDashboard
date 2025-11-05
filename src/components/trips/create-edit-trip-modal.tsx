@@ -403,6 +403,7 @@ export function CreateEditTripModal({
     }
   };
 
+
   return (
     <div
       className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-50"
@@ -752,12 +753,15 @@ export function CreateEditTripModal({
                     min="1"
                     max="50"
                     value={formData.seatCount}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        seatCount: parseInt(e.target.value) || 0,
-                      }))
-                    }
+                    
+                      onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData((prev) => ({
+                      ...prev,
+                      seatCount: value === "" ? 0 : parseInt(value, 10),
+                    }));
+                  }}
+
                     placeholder="Enter number of seats (1-50)"
                     className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20"
                   />
@@ -820,12 +824,13 @@ export function CreateEditTripModal({
                     min="0"
                     step="100"
                     value={formData.price}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        price: parseInt(e.target.value) || 0,
-                      }))
-                    }
+                    placeholder="Enter trip price e.g., 5000"
+                    onChange={(e) => {
+                      const rawValue = e.target.value.replace(/,/g, "");
+                      if (/^\d*$/.test(rawValue)) {
+                        setFormData((prev) => ({ ...prev, price: Number(rawValue) }));
+                      }
+                    }}
                     className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20"
                   />
                   {errors.price && (

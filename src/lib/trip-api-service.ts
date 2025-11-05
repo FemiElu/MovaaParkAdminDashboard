@@ -60,6 +60,9 @@ export interface Vehicle {
 }
 
 export interface Passenger {
+  phone_number: ReactNode;
+  last_name: ReactNode;
+  first_name: ReactNode;
   id: string;
   name: string;
   phone: string;
