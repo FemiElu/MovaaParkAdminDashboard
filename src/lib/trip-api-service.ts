@@ -3,6 +3,8 @@
  * Handles communication with backend trip APIs
  */
 
+import { ReactNode } from "react";
+
 export interface TripCreateData {
   total_seats: number;
   to_route: string;

@@ -412,9 +412,20 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
         {/* Passengers List */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 mb-20 sm:mb-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Passengers (Confirmed: {confirmedCount}, Reserved: {reservedCount})
-            </h3>
+            <div className="flex items-center gap-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Passengers (Confirmed: {confirmedCount}, Reserved: {reservedCount})
+              </h3>
+              {/* Legend: shows what chip colors mean */}
+              <div className="hidden sm:flex items-center gap-2 text-sm text-gray-600">
+                <span className="inline-flex items-center px-2 py-1 rounded-full bg-green-100 text-green-800 text-xs font-medium">
+                  Confirmed
+                </span>
+                <span className="inline-flex items-center px-2 py-1 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium">
+                  Reserved
+                </span>
+              </div>
+            </div>
             <Button
               onClick={() => window.location.reload()}
               variant="outline"
@@ -465,15 +476,24 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
                           </div>
                        
                           <div className="text-sm text-gray-500">
-                          {passenger.phone_number
-                            ?.replace(/^(\+?234|234)/, "0")
-                            .replace(/\s+/g, "")}
+                          {(typeof passenger.phone_number === 'string' 
+                            ? passenger.phone_number
+                                .replace(/^(\+?234|234)/, "0")
+                                .replace(/\s+/g, "")
+                            : passenger.phone_number)}
                         </div>
 
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            isPassengerPaid(passenger)
+                              ? "bg-green-100 text-green-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                          title={isPassengerPaid(passenger) ? "Confirmed (paid)" : "Reserved (hold)"}
+                        >
                           Seat {passenger.seat_number}
                         </span>
                       </td>

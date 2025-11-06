@@ -146,16 +146,26 @@ class AuthService {
       const response = await fetch(url, config);
 
       if (!response.ok) {
+        // Try to parse error body but don't throw - return a normalized error
         const errorData = await response.json().catch(() => ({}));
-        console.error("API request failed:", {
+        const parsedMessage =
+          (errorData && (errorData.message || errorData.error)) ||
+          response.statusText ||
+          `HTTP error! status: ${response.status}`;
+
+        // Minimal console warning for debugging (no stack trace)
+        console.warn(`API request returned non-OK status ${response.status}: ${parsedMessage}`);
+
+        // Return a normalized error-shaped response so callers can handle it
+        const normalizedError = {
+          success: false,
+          error: parsedMessage,
+          message: parsedMessage,
           status: response.status,
-          statusText: response.statusText,
-          url: response.url,
-          errorData,
-        });
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
+          details: errorData,
+        } as unknown as T;
+
+        return normalizedError;
       }
 
       const data = await response.json();
@@ -325,9 +335,18 @@ class AuthService {
 
       return data;
     } catch (error) {
-      console.error(`API request failed for ${endpoint}:`, error);
-      console.error(`Full URL attempted: ${url}`);
-      throw error;
+      // Log a compact warning and return a normalized failure so callers don't get noisy stack traces
+      const message =
+        error instanceof Error ? error.message : `API request failed for ${endpoint}`;
+      console.warn(`API request failed for ${endpoint}: ${message}`);
+
+      const normalizedError = {
+        success: false,
+        error: message,
+        message,
+      } as unknown as T;
+
+      return normalizedError;
     }
   }
 
