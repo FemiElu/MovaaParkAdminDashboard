@@ -8,6 +8,7 @@ import { z } from "zod";
 import Link from "next/link";
 import { authService, VerifySignupData } from "@/lib/auth-service";
 import { useAuth } from "@/lib/auth-context";
+import { PageLoader } from "@/components/ui/spinner";
 
 const otpSchema = z.object({
   otp: z
@@ -209,7 +210,7 @@ function VerifySignupPageContent() {
 
 export default function VerifySignupPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<PageLoader text="Loading verification..." />}>
       <VerifySignupPageContent />
     </Suspense>
   );

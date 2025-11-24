@@ -1,3 +1,5 @@
+import { PageLoader } from "@/components/ui/spinner";
+
 export default function Loading() {
-  return <div className="p-4 text-gray-600">Loading drivers…</div>;
+  return <PageLoader text="Loading drivers..." />;
 }

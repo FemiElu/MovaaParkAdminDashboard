@@ -517,8 +517,8 @@ export default function DriverForm({
           {isLoading
             ? "Saving..."
             : initialData
-            ? "Update Driver"
-            : "Create Driver"}
+              ? "Update Driver"
+              : "Create Driver"}
         </Button>
       </div>
     </form>

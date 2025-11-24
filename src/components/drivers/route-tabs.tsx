@@ -18,7 +18,9 @@ export function RouteTabs({
   driverCounts,
   className = "",
 }: RouteTabsProps) {
-  const allCount = Object.values(driverCounts).reduce((sum, count) => sum + count, 0);
+  // Use the "all" count directly instead of summing all values
+  // (summing would double-count since driverCounts includes both route counts AND the "all" total)
+  const allCount = driverCounts["all"] || 0;
 
   return (
     <div className={`relative ${className}`}>
@@ -31,10 +33,9 @@ export function RouteTabs({
             className={`
               flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
               transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2
-              ${
-                selectedRouteId === null
-                  ? "bg-[var(--primary)] text-white shadow-sm"
-                  : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+              ${selectedRouteId === null
+                ? "bg-[var(--primary)] text-white shadow-sm"
+                : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
               }
             `}
             aria-label={`Show all drivers (${allCount} total)`}
@@ -44,10 +45,9 @@ export function RouteTabs({
             <span
               className={`
                 px-2 py-1 rounded-full text-xs font-medium
-                ${
-                  selectedRouteId === null
-                    ? "bg-white/20 text-white"
-                    : "bg-gray-100 text-gray-600"
+                ${selectedRouteId === null
+                  ? "bg-white/20 text-white"
+                  : "bg-gray-100 text-gray-600"
                 }
               `}
             >
@@ -67,10 +67,9 @@ export function RouteTabs({
                 className={`
                   flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
                   transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:ring-offset-2
-                  ${
-                    isSelected
-                      ? "bg-[var(--primary)] text-white shadow-sm"
-                      : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
+                  ${isSelected
+                    ? "bg-[var(--primary)] text-white shadow-sm"
+                    : "bg-white text-gray-700 hover:bg-gray-50 border border-gray-200"
                   }
                 `}
                 aria-label={`Filter by ${route.destination} route (${count} drivers)`}
@@ -80,10 +79,9 @@ export function RouteTabs({
                 <span
                   className={`
                     px-2 py-1 rounded-full text-xs font-medium
-                    ${
-                      isSelected
-                        ? "bg-white/20 text-white"
-                        : "bg-gray-100 text-gray-600"
+                    ${isSelected
+                      ? "bg-white/20 text-white"
+                      : "bg-gray-100 text-gray-600"
                     }
                   `}
                 >

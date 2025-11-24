@@ -5,6 +5,7 @@ import { RouteConfig, Driver } from "@/types";
 import { RouteCard } from "./route-card";
 import { RouteForm } from "./route-form";
 import { routeApiService } from "@/lib/route-api-service";
+import { driverApiService } from "@/lib/driver-api-service";
 import { loadDriversFromStorage } from "@/lib/client-driver-storage";
 import { normalizeString } from "@/lib/utils";
 import { PlusIcon } from "@heroicons/react/24/outline";
@@ -62,19 +63,88 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
 
   const fetchDrivers = useCallback(async () => {
     try {
-      // Use local storage drivers that have proper route associations
-      const localDrivers = loadDriversFromStorage(parkId || "default-park");
-      setDrivers(localDrivers);
-      console.log(`Loaded ${localDrivers.length} drivers from local storage`);
+      console.log("fetchDrivers - Fetching from API...");
+
+      // Fetch all drivers from the backend API
+      const response = await driverApiService.getAllDrivers();
+
+      if (!response.success || !response.data) {
+        console.error("Failed to fetch drivers from API:", response.error);
+        setDrivers([]);
+        return;
+      }
+
+      console.log(`API returned ${response.data.length} drivers`);
+
+      // Load route associations from localStorage
+      const driverRoutesRaw = localStorage.getItem("driver_routes") || "{}";
+      const driverRoutes: Record<string, { routeId: string; timestamp: number }> =
+        JSON.parse(driverRoutesRaw);
+
+      // Also load pending associations by phone number
+      const driverRoutesByPhoneRaw = localStorage.getItem("driver_routes_by_phone") || "{}";
+      const driverRoutesByPhone: Record<string, { routeId: string; timestamp: number }> =
+        JSON.parse(driverRoutesByPhoneRaw);
+
+      console.log("Driver route associations:", driverRoutes);
+      console.log("Driver route associations by phone:", driverRoutesByPhone);
+
+      // Convert API drivers to internal Driver format with route associations
+      const convertedDrivers = response.data.map((apiDriver) => {
+        const driverId = apiDriver.user.id;
+        const driverPhone = apiDriver.user.phone_number;
+
+        // Try to get route association by driver ID first, then by phone
+        let routeAssociation = driverRoutes[driverId];
+        if (!routeAssociation && driverPhone) {
+          routeAssociation = driverRoutesByPhone[driverPhone];
+
+          // If found by phone, migrate it to driver ID mapping
+          if (routeAssociation) {
+            driverRoutes[driverId] = routeAssociation;
+            localStorage.setItem("driver_routes", JSON.stringify(driverRoutes));
+
+            // Remove from phone mapping
+            delete driverRoutesByPhone[driverPhone];
+            localStorage.setItem("driver_routes_by_phone", JSON.stringify(driverRoutesByPhone));
+
+            console.log(`Migrated route association for phone ${driverPhone} to driver ID ${driverId}`);
+          }
+        }
+
+        const driver: Driver = {
+          id: driverId,
+          parkId: parkId || "default-park",
+          name: `${apiDriver.user.first_name} ${apiDriver.user.last_name}`.trim(),
+          phone: apiDriver.user.phone_number,
+          licenseNumber: apiDriver.plate_number || "N/A",
+          licenseExpiry: apiDriver.date_of_birth,
+          qualifiedRoute: "", // Will be set below if route association exists
+          routeIds: routeAssociation ? [routeAssociation.routeId] : [],
+          isActive: apiDriver.user.is_active,
+          rating: 5,
+          vehiclePlateNumber: apiDriver.plate_number,
+          address: apiDriver.address || apiDriver.user.address || undefined,
+          photo: apiDriver.user.avatar,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        return driver;
+      });
+
+      setDrivers(convertedDrivers);
+      console.log(`Loaded and converted ${convertedDrivers.length} drivers from API`);
       console.log(
-        "Local drivers:",
-        localDrivers.map((d) => ({
+        "Converted drivers with route IDs:",
+        convertedDrivers.map((d) => ({
           name: d.name,
-          qualifiedRoute: d.qualifiedRoute,
+          routeIds: d.routeIds,
         }))
       );
     } catch (error) {
-      console.error("Failed to load drivers from storage:", error);
+      console.error("Failed to fetch drivers:", error);
+      setDrivers([]);
     }
   }, [parkId]);
 
@@ -123,19 +193,10 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
   const handleRouteDeleted = async (routeId: string) => {
     try {
       // Prevent deletion if linked (drivers/trips). We at least check drivers here.
-      const route = routes.find((r) => r.id === routeId);
       const linkedDriverCount = drivers.filter((d) => {
-        if (!route) return false;
-        return (
-          d.qualifiedRoute === route.destination ||
-          d.qualifiedRoute
-            ?.toLowerCase()
-            .includes(route.destination.toLowerCase()) ||
-          d.qualifiedRoute
-            ?.toLowerCase()
-            .includes(route.destinationPark?.toLowerCase() || "")
-        );
+        return d.routeIds && d.routeIds.includes(routeId);
       }).length;
+
       if (linkedDriverCount > 0) {
         alert(
           "This route has linked drivers and cannot be deleted. Remove all links first."
@@ -239,25 +300,23 @@ export function RoutesManager({ parkId }: RoutesManagerProps) {
               );
             })
             .map((route) => {
-              // Calculate driver count by matching qualified routes with route destination
-              // Robust matching: normalize both strings and check contains/both ways
-              const normalizedRoute = normalizeString(route.destination || route.destinationPark || "");
+              // Calculate driver count by matching route IDs
+              // Check if route.id exists in driver's routeIds array
               const driverCount = drivers.filter((d) => {
-                const q = normalizeString(d.qualifiedRoute || "");
-                if (!q || !normalizedRoute) return false;
-                // match if driver qualified contains route or route contains driver (for small/long names)
-                return q.includes(normalizedRoute) || normalizedRoute.includes(q);
+                return d.routeIds && d.routeIds.includes(route.id);
               }).length;
 
               console.log(
-                `Route ${route.destination} (${route.destinationPark}) has ${driverCount} drivers`
+                `Route ${route.destination} (ID: ${route.id}) has ${driverCount} drivers`
               );
               console.log(
-                `Available drivers:`,
-                drivers.map((d) => ({
-                  name: d.name,
-                  qualifiedRoute: d.qualifiedRoute,
-                }))
+                `Available drivers for route:`,
+                drivers
+                  .filter((d) => d.routeIds && d.routeIds.includes(route.id))
+                  .map((d) => ({
+                    name: d.name,
+                    routeIds: d.routeIds,
+                  }))
               );
 
               const isDeletable = driverCount === 0; // Extend later with trips check

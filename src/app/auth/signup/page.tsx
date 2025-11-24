@@ -9,7 +9,7 @@ import Link from "next/link";
 import { authService, SignupData } from "@/lib/auth-service";
 import { formatNigerianPhoneNumber } from "@/lib/phone-utils";
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { geocodingService } from "@/lib/geocoding-service";
+import LocationPicker, { LocationData } from "@/components/location/location-picker";
 
 const signupSchema = z
   .object({
@@ -18,9 +18,6 @@ const signupSchema = z
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string(),
     terminal_name: z.string().min(2, "Terminal name is required"),
-    terminal_address: z.string().min(5, "Terminal address is required"),
-    terminal_city: z.string().min(2, "Terminal city is required"),
-    terminal_state: z.string().min(2, "Terminal state is required"),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -33,6 +30,7 @@ function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [locationData, setLocationData] = useState<LocationData | null>(null);
   const router = useRouter();
 
   const {
@@ -49,25 +47,11 @@ function SignupForm() {
     setSuccess("");
 
     try {
-      // Geocode the terminal address to get coordinates
-      setSuccess("Getting terminal location...");
-      const geocodingResult = await geocodingService.geocodeWithRetry(
-        {
-          address: data.terminal_address,
-          city: data.terminal_city,
-          state: data.terminal_state,
-          country: "Nigeria",
-        },
-        2
-      ); // Use 2 retries for faster signup
-
-      if (!geocodingResult.success) {
-        console.warn(
-          "Geocoding failed, using fallback coordinates:",
-          geocodingResult.error
-        );
-      } else if (geocodingResult.cached) {
-        console.log("Using cached geocoding result");
+      // Validate that location has been selected and confirmed
+      if (!locationData) {
+        setError("Please select and confirm your terminal location on the map");
+        setIsLoading(false);
+        return;
       }
 
       const signupData: SignupData = {
@@ -75,11 +59,11 @@ function SignupForm() {
         phone_number: formatNigerianPhoneNumber(data.phone_number),
         password: data.password,
         terminal_name: data.terminal_name,
-        terminal_address: data.terminal_address,
-        terminal_city: data.terminal_city,
-        terminal_state: data.terminal_state,
-        terminal_latitude: geocodingResult.latitude,
-        terminal_longitude: geocodingResult.longitude,
+        terminal_address: locationData.address,
+        terminal_city: locationData.city,
+        terminal_state: locationData.state,
+        terminal_latitude: locationData.latitude,
+        terminal_longitude: locationData.longitude,
       };
 
       // Store terminal data in localStorage as temporary fallback
@@ -87,11 +71,11 @@ function SignupForm() {
         "movaa_terminal_data",
         JSON.stringify({
           terminal_name: data.terminal_name,
-          terminal_address: data.terminal_address,
-          terminal_city: data.terminal_city,
-          terminal_state: data.terminal_state,
-          terminal_latitude: geocodingResult.latitude,
-          terminal_longitude: geocodingResult.longitude,
+          terminal_address: locationData.address,
+          terminal_city: locationData.city,
+          terminal_state: locationData.state,
+          terminal_latitude: locationData.latitude,
+          terminal_longitude: locationData.longitude,
         })
       );
 
@@ -138,7 +122,7 @@ function SignupForm() {
         </div>
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-6">
             {/* Account Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">
@@ -180,7 +164,7 @@ function SignupForm() {
                   type="tel"
                   autoComplete="tel"
                   className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="e.g., 08012345678 or 2348012345678"
+                  placeholder="e.g., 08012345678"
                 />
                 {errors.phone_number && (
                   <p className="mt-1 text-sm text-red-600">
@@ -234,6 +218,18 @@ function SignupForm() {
               </div>
             </div>
 
+            {/* Divider */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-300"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-50 text-gray-500">
+                  Terminal Location
+                </span>
+              </div>
+            </div>
+
             {/* Terminal Information */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium text-gray-900">
@@ -261,67 +257,11 @@ function SignupForm() {
                 )}
               </div>
 
-              {/* Terminal Address */}
+              {/* Location Picker */}
               <div>
-                <label
-                  htmlFor="terminal_address"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Terminal Address *
-                </label>
-                <textarea
-                  {...register("terminal_address")}
-                  rows={3}
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="Enter complete terminal address"
+                <LocationPicker
+                  onLocationSelect={(location) => setLocationData(location)}
                 />
-                {errors.terminal_address && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.terminal_address.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Terminal City */}
-              <div>
-                <label
-                  htmlFor="terminal_city"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Terminal City *
-                </label>
-                <input
-                  {...register("terminal_city")}
-                  type="text"
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="e.g., Lagos"
-                />
-                {errors.terminal_city && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.terminal_city.message}
-                  </p>
-                )}
-              </div>
-
-              {/* Terminal State */}
-              <div>
-                <label
-                  htmlFor="terminal_state"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Terminal State *
-                </label>
-                <input
-                  {...register("terminal_state")}
-                  type="text"
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="e.g., Lagos State"
-                />
-                {errors.terminal_state && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {errors.terminal_state.message}
-                  </p>
-                )}
               </div>
             </div>
           </div>

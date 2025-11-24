@@ -752,16 +752,23 @@ export function CreateEditTripModal({
                     type="number"
                     min="1"
                     max="50"
-                    value={formData.seatCount}
-                    
-                      onChange={(e) => {
-                    const value = e.target.value;
-                    setFormData((prev) => ({
-                      ...prev,
-                      seatCount: value === "" ? 0 : parseInt(value, 10),
-                    }));
-                  }}
-
+                    value={formData.seatCount === 0 ? "" : formData.seatCount}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Allow empty field or valid numbers
+                      if (value === "") {
+                        setFormData((prev) => ({ ...prev, seatCount: 0 }));
+                      } else {
+                        const numValue = parseInt(value, 10);
+                        if (!isNaN(numValue)) {
+                          setFormData((prev) => ({ ...prev, seatCount: numValue }));
+                        }
+                      }
+                    }}
+                    onFocus={(e) => {
+                      // Select all text on focus for easy replacement
+                      e.target.select();
+                    }}
                     placeholder="Enter number of seats (1-50)"
                     className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20"
                   />
@@ -820,16 +827,24 @@ export function CreateEditTripModal({
                   </Label>
                   <Input
                     id="price"
-                    type="number"
-                    min="0"
-                    step="100"
-                    value={formData.price}
-                    placeholder="Enter trip price e.g., 5000"
+                    type="text"
+                    inputMode="numeric"
+                    value={
+                      formData.price === 0
+                        ? ""
+                        : formData.price.toLocaleString("en-US")
+                    }
+                    placeholder="Enter trip price e.g., 5,000"
                     onChange={(e) => {
-                      const rawValue = e.target.value.replace(/,/g, "");
-                      if (/^\d*$/.test(rawValue)) {
-                        setFormData((prev) => ({ ...prev, price: Number(rawValue) }));
-                      }
+                      // Remove all non-digit characters (including commas)
+                      const rawValue = e.target.value.replace(/[^\d]/g, "");
+                      // Update state with the numeric value
+                      const numValue = rawValue === "" ? 0 : parseInt(rawValue, 10);
+                      setFormData((prev) => ({ ...prev, price: numValue }));
+                    }}
+                    onFocus={(e) => {
+                      // Select all text on focus for easy replacement
+                      e.target.select();
                     }}
                     className="h-12 border-gray-200 focus:border-green-500 focus:ring-green-500/20"
                   />
@@ -849,6 +864,20 @@ export function CreateEditTripModal({
                       <span>{errors.price}</span>
                     </p>
                   )}
+                  <p className="text-sm text-gray-500 mt-1 flex items-center space-x-1">
+                    <svg
+                      className="w-4 h-4"
+                      fill="currentColor"
+                      viewBox="0 0 20 20"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                    <span>Price automatically formatted with commas</span>
+                  </p>
                 </div>
 
                 {/* Driver */}

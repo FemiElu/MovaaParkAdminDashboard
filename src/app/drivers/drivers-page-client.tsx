@@ -213,9 +213,8 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
                 id: d.user.id,
                 parkId: parkId || "default-park",
                 name:
-                  `${d.user.first_name || ""} ${
-                    d.user.last_name || ""
-                  }`.trim() || "Unknown Driver",
+                  `${d.user.first_name || ""} ${d.user.last_name || ""
+                    }`.trim() || "Unknown Driver",
                 phone: d.user.phone_number || "Unknown",
                 licenseNumber: "N/A", // No license number in this response structure
                 licenseExpiry: undefined,
@@ -371,9 +370,11 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
             <Button>Add Driver</Button>
           </Link>
         </div>
-        <div className="text-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[var(--primary)] mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading drivers...</p>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--primary)] mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium">Loading drivers...</p>
+          </div>
         </div>
       </div>
     );

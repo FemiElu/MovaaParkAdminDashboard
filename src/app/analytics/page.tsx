@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
+import { Spinner } from "@/components/ui/spinner";
 import { DashboardHeader } from "@/components/dashboard/header";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { MobileHeader } from "@/components/dashboard/mobile-header";
@@ -21,8 +22,8 @@ export default function AnalyticsPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <Spinner size="lg" className="mb-4" />
+          <p className="text-gray-600 font-medium">Loading...</p>
         </div>
       </div>
     );
