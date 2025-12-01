@@ -134,6 +134,7 @@ export function CityAutocomplete({
                     ref={inputRef}
                     id="city-autocomplete"
                     type="text"
+                    role="combobox"
                     value={inputValue}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
@@ -167,8 +168,8 @@ export function CityAutocomplete({
                                 onClick={() => handleSelectSuggestion(city)}
                                 onMouseEnter={() => setSelectedIndex(index)}
                                 className={`px-3 py-2 cursor-pointer transition-colors ${index === selectedIndex
-                                        ? "bg-green-100 text-green-900"
-                                        : "hover:bg-gray-50"
+                                    ? "bg-green-100 text-green-900"
+                                    : "hover:bg-gray-50"
                                     }`}
                             >
                                 {city}

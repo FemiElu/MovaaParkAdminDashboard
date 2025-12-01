@@ -56,7 +56,20 @@ export async function GET(request: NextRequest) {
         }
 
         // Transform Nominatim response to our format
-        const results = data.map((item: any) => ({
+        interface NominatimResult {
+            display_name: string;
+            lat: string;
+            lon: string;
+            address?: {
+                city?: string;
+                town?: string;
+                village?: string;
+                state?: string;
+                country?: string;
+            };
+        }
+
+        const results = data.map((item: NominatimResult) => ({
             displayName: item.display_name,
             latitude: parseFloat(item.lat),
             longitude: parseFloat(item.lon),

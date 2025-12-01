@@ -6,8 +6,6 @@ import { RouteCard } from "./route-card";
 import { RouteForm } from "./route-form";
 import { routeApiService } from "@/lib/route-api-service";
 import { driverApiService } from "@/lib/driver-api-service";
-import { loadDriversFromStorage } from "@/lib/client-driver-storage";
-import { normalizeString } from "@/lib/utils";
 import { PlusIcon } from "@heroicons/react/24/outline";
 
 interface RoutesManagerProps {

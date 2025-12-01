@@ -23,7 +23,7 @@ export default function MapComponent({
         if (!containerRef.current || mapRef.current) return;
 
         // Fix for default marker icon
-        delete (L.Icon.Default.prototype as any)._getIconUrl;
+        delete (L.Icon.Default.prototype as unknown as Record<string, unknown>)._getIconUrl;
         L.Icon.Default.mergeOptions({
             iconRetinaUrl:
                 "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
@@ -137,7 +137,7 @@ export default function MapComponent({
             mapRef.current.panTo(newLatLng);
 
             // Update pulse circle by iterating through layers
-            mapRef.current.eachLayer((layer: any) => {
+            mapRef.current.eachLayer((layer: L.Layer) => {
                 if (layer instanceof L.Circle) {
                     layer.setLatLng(newLatLng);
                 }
