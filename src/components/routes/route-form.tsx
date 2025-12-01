@@ -7,6 +7,7 @@ import { z } from "zod";
 import { RouteConfig, RouteFormData } from "@/types";
 import { routeApiService } from "@/lib/route-api-service";
 import { XMarkIcon } from "@heroicons/react/24/outline";
+import { CityAutocomplete } from "@/components/ui/city-autocomplete";
 
 const routeSchema = z.object({
   destination: z.string().min(1, "Destination is required"),
@@ -35,6 +36,8 @@ export function RouteForm({
     register,
     handleSubmit,
     formState: { errors },
+    setValue,
+    watch,
   } = useForm<RouteFormData>({
     resolver: zodResolver(routeSchema),
     defaultValues: {
@@ -44,6 +47,8 @@ export function RouteForm({
       isActive: route?.isActive ?? true,
     },
   });
+
+  const destinationValue = watch("destination");
 
   const onSubmit = async (data: RouteFormData) => {
     setLoading(true);
@@ -149,25 +154,15 @@ export function RouteForm({
             )}
           </div>
 
-          <div>
-            <label
-              htmlFor="destination"
-              className="block text-sm font-medium text-gray-700 mb-2"
-            >
-              Destination *
-            </label>
-            <input
-              {...register("destination")}
-              type="text"
-              placeholder="e.g., Ibadan, Abuja"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-            />
-            {errors.destination && (
-              <p className="mt-1 text-sm text-red-600">
-                {errors.destination.message}
-              </p>
-            )}
-          </div>
+          <CityAutocomplete
+            value={destinationValue}
+            onChange={(value) => {
+              setValue("destination", value, { shouldValidate: true });
+            }}
+            placeholder="e.g., Ibadan, Abuja"
+            error={errors.destination?.message}
+            label="Destination"
+          />
 
           <div>
             <label

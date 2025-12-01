@@ -142,30 +142,35 @@ export function TripsPageClient({
           } else {
             // Convert API Trip format to expected Trip format
             const convertedTrips = (tripsArray as unknown as ApiTrip[]).map(
-              (trip: ApiTrip) => ({
-                id: trip.id,
-                parkId: parkId || "default-park",
-                routeId: trip.to_route?.id || "",
-                driverId: trip.driver || "",
-                date: trip.departure_date,
-                unitTime: trip.departure_time, // always mapped
-                seatCount: trip.total_seats,
-                confirmedBookingsCount: trip.total_seats - trip.available_seats,
-                maxParcelsPerVehicle: 10, // Default value
-                driverPhone: "", // Will be filled from driver data if needed
-                price: trip.price,
-                status: (trip.is_active ? "published" : "draft") as
-                  | "published"
-                  | "draft"
-                  | "live"
-                  | "completed"
-                  | "cancelled",
-                payoutStatus: "NotScheduled" as const,
-                isRecurring: trip.is_recurrent,
-                parentTripId: undefined,
-                createdAt: trip.created_at || new Date().toISOString(),
-                updatedAt: trip.updated_at || new Date().toISOString(),
-              })
+              (trip: ApiTrip) => {
+                // Look up driver phone from drivers array
+                const driver = drivers.find((d) => d.id === trip.driver);
+
+                return {
+                  id: trip.id,
+                  parkId: parkId || "default-park",
+                  routeId: trip.to_route?.id || "",
+                  driverId: trip.driver || "",
+                  date: trip.departure_date,
+                  unitTime: trip.departure_time, // always mapped
+                  seatCount: trip.total_seats,
+                  confirmedBookingsCount: trip.total_seats - trip.available_seats,
+                  maxParcelsPerVehicle: 10, // Default value
+                  driverPhone: driver?.phone || "", // Look up from drivers array
+                  price: trip.price,
+                  status: (trip.is_active ? "published" : "draft") as
+                    | "published"
+                    | "draft"
+                    | "live"
+                    | "completed"
+                    | "cancelled",
+                  payoutStatus: "NotScheduled" as const,
+                  isRecurring: trip.is_recurrent,
+                  parentTripId: undefined,
+                  createdAt: trip.created_at || new Date().toISOString(),
+                  updatedAt: trip.updated_at || new Date().toISOString(),
+                };
+              }
             );
             console.log("Raw API trips:", tripsArray);
             console.log("Converted trips:", convertedTrips);
@@ -182,7 +187,7 @@ export function TripsPageClient({
     };
     fetchTrips();
     return () => controller.abort();
-  }, [isClient, selectedDate, parkId]);
+  }, [isClient, selectedDate, parkId, drivers]);
 
   // Get trips filtered by date and route (time is static 06:00)
   const filteredTrips = useMemo(() => {
@@ -284,30 +289,35 @@ export function TripsPageClient({
 
         if (tripsResponse.success && tripsResponse.data) {
           // Convert API trips to frontend format
-          const convertedTrips = tripsResponse.data.map((trip: ApiTrip) => ({
-            id: trip.id,
-            parkId: parkId || "default-park",
-            routeId: trip.to_route?.id || "",
-            driverId: trip.driver || "",
-            date: trip.departure_date,
-            unitTime: trip.departure_time,
-            seatCount: trip.total_seats,
-            confirmedBookingsCount: trip.total_seats - trip.available_seats,
-            maxParcelsPerVehicle: 10,
-            driverPhone: "",
-            price: trip.price,
-            status: (trip.is_active ? "published" : "draft") as
-              | "published"
-              | "draft"
-              | "live"
-              | "completed"
-              | "cancelled",
-            payoutStatus: "NotScheduled" as const,
-            isRecurring: trip.is_recurrent,
-            parentTripId: undefined,
-            createdAt: trip.created_at || new Date().toISOString(),
-            updatedAt: trip.updated_at || new Date().toISOString(),
-          }));
+          const convertedTrips = tripsResponse.data.map((trip: ApiTrip) => {
+            // Look up driver phone from drivers array
+            const driver = drivers.find((d) => d.id === trip.driver);
+
+            return {
+              id: trip.id,
+              parkId: parkId || "default-park",
+              routeId: trip.to_route?.id || "",
+              driverId: trip.driver || "",
+              date: trip.departure_date,
+              unitTime: trip.departure_time,
+              seatCount: trip.total_seats,
+              confirmedBookingsCount: trip.total_seats - trip.available_seats,
+              maxParcelsPerVehicle: 10,
+              driverPhone: driver?.phone || "", // Look up from drivers array
+              price: trip.price,
+              status: (trip.is_active ? "published" : "draft") as
+                | "published"
+                | "draft"
+                | "live"
+                | "completed"
+                | "cancelled",
+              payoutStatus: "NotScheduled" as const,
+              isRecurring: trip.is_recurrent,
+              parentTripId: undefined,
+              createdAt: trip.created_at || new Date().toISOString(),
+              updatedAt: trip.updated_at || new Date().toISOString(),
+            };
+          });
           console.log("Setting updated trips:", convertedTrips);
           setApiTrips(convertedTrips);
         }
@@ -438,7 +448,7 @@ export function TripsPageClient({
                         <span className="font-medium text-green-600">
                           {Array.isArray(routes)
                             ? routes.find((r) => r.id === selectedRouteId)
-                                ?.destination
+                              ?.destination
                             : undefined}
                         </span>
                       </span>
@@ -557,13 +567,12 @@ export function TripsPageClient({
                             {route?.destination || "Unknown Route"}
                           </h3>
                           <div
-                            className={`w-3 h-3 rounded-full flex-shrink-0 ${
-                              trip.status === "published"
-                                ? "bg-green-500"
-                                : trip.status === "live"
+                            className={`w-3 h-3 rounded-full flex-shrink-0 ${trip.status === "published"
+                              ? "bg-green-500"
+                              : trip.status === "live"
                                 ? "bg-blue-500"
                                 : "bg-gray-400"
-                            }`}
+                              }`}
                             title={trip.status}
                           />
                         </div>

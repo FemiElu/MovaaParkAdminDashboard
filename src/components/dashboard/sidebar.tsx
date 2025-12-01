@@ -20,7 +20,6 @@ const navigation = [
   { name: "Drivers", href: "/drivers", icon: UserGroupIcon },
   { name: "Trip Scheduling", href: "/trips", icon: CalendarDaysIcon },
   { name: "Live Bookings", href: "/bookings", icon: BellIcon },
-  { name: "Webhooks", href: "/webhooks", icon: ChatBubbleLeftRightIcon },
   { name: "Revenue", href: "/revenue", icon: CurrencyDollarIcon },
   { name: "Analytics", href: "/analytics", icon: ChartBarIcon },
   { name: "Messaging", href: "/messaging", icon: ChatBubbleLeftRightIcon },
@@ -52,11 +51,10 @@ export function DashboardSidebar() {
                     <li key={item.name}>
                       <Link
                         href={item.href}
-                        className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${
-                          isActive
+                        className={`group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors ${isActive
                             ? "bg-gray-800 text-white"
                             : "text-gray-400 hover:text-white hover:bg-gray-800"
-                        }`}
+                          }`}
                       >
                         <item.icon
                           className="h-6 w-6 shrink-0"

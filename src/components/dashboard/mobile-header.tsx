@@ -14,7 +14,6 @@ import { usePathname } from "next/navigation";
 
 // Additional navigation items for mobile menu overlay
 const additionalNavigation = [
-  { name: "Webhooks", href: "/webhooks", icon: ChatBubbleLeftRightIcon },
   { name: "Revenue", href: "/revenue", icon: CurrencyDollarIcon },
   { name: "Analytics", href: "/analytics", icon: ChartBarIcon },
   { name: "Messaging", href: "/messaging", icon: ChatBubbleLeftRightIcon },
@@ -63,7 +62,7 @@ export function MobileHeader() {
 
           {/* Menu Content */}
           <div className="fixed right-0 top-0 h-full w-80 max-w-[85vw] bg-white shadow-xl">
-            <div className="flex flex-col h-full">
+            <div className="flex flex-col h-full pb-24">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-200">
                 <div>
@@ -91,11 +90,10 @@ export function MobileHeader() {
                         key={item.name}
                         href={item.href}
                         onClick={() => setIsMenuOpen(false)}
-                        className={`flex items-center gap-x-3 rounded-md p-3 text-sm font-medium transition-colors ${
-                          isActive
-                            ? "bg-green-50 text-green-700 border-l-4 border-green-600"
-                            : "text-gray-700 hover:bg-gray-50"
-                        }`}
+                        className={`flex items-center gap-x-3 rounded-md p-3 text-sm font-medium transition-colors ${isActive
+                          ? "bg-green-50 text-green-700 border-l-4 border-green-600"
+                          : "text-gray-700 hover:bg-gray-50"
+                          }`}
                       >
                         <item.icon className="h-5 w-5" aria-hidden="true" />
                         {item.name}
@@ -118,13 +116,13 @@ export function MobileHeader() {
                     user.park ||
                     user.name ||
                     user.first_name) && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {user.terminal?.name ||
-                        user.park?.name ||
-                        user.first_name ||
-                        user.name}
-                    </p>
-                  )}
+                      <p className="text-xs text-gray-500 mt-1">
+                        {user.terminal?.name ||
+                          user.park?.name ||
+                          user.first_name ||
+                          user.name}
+                      </p>
+                    )}
                 </div>
 
                 <button

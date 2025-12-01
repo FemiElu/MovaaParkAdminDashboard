@@ -47,12 +47,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async (): Promise<void> => {
     try {
+      // Call auth service logout which now clears ALL user-specific data from localStorage
       await authService.logout();
     } catch (error) {
       console.error("Logout error:", error);
     } finally {
+      // Always reset user state regardless of API call success
       setUser(null);
       setHasToken(false);
+      console.log("User state cleared - logout complete");
     }
   };
 
@@ -66,7 +69,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       // Silently handle invalid token errors during initialization
-      console.log("Token validation failed, clearing authentication");
+      console.log("Token validation failed, clearing all user data");
+      authService.clearUserData();
       setUser(null);
       setHasToken(false);
     }
@@ -85,22 +89,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setUser(response.user);
             console.log("User loaded successfully on init");
           } else {
-            // Token is invalid, clear it
-            console.log("Invalid token on init, clearing authentication");
+            // Token is invalid, clear ALL user data
+            console.log("Invalid token on init, clearing all user data");
+            authService.clearUserData();
             setUser(null);
             setHasToken(false);
-            localStorage.removeItem("auth_token");
-            localStorage.removeItem("refresh_token");
           }
         } catch {
-          // Token is invalid, clear it
+          // Token is invalid, clear ALL user data
           console.log(
-            "Token validation failed on init, clearing authentication"
+            "Token validation failed on init, clearing all user data"
           );
+          authService.clearUserData();
           setUser(null);
           setHasToken(false);
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("refresh_token");
         }
       }
 
@@ -124,22 +126,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(response.user);
         setHasToken(true);
       } else {
-        // Token is invalid, clear it
-        console.log("Invalid token in loadUser, clearing authentication");
+        // Token is invalid, clear ALL user data
+        console.log("Invalid token in loadUser, clearing all user data");
+        authService.clearUserData();
         setUser(null);
         setHasToken(false);
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("refresh_token");
       }
     } catch {
-      // Token is invalid, clear it
+      // Token is invalid, clear ALL user data
       console.log(
-        "Token validation failed in loadUser, clearing authentication"
+        "Token validation failed in loadUser, clearing all user data"
       );
+      authService.clearUserData();
       setUser(null);
       setHasToken(false);
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("refresh_token");
     }
   };
 

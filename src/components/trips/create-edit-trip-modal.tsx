@@ -178,7 +178,6 @@ export function CreateEditTripModal({
     if (isOpen) {
       if (mode === "edit" && trip) {
         console.log("Editing trip data:", trip);
-        console.log("Available drivers:", apiDrivers);
 
         // Set initial form data
         const initialFormData = {
@@ -214,7 +213,7 @@ export function CreateEditTripModal({
       }
       setErrors({});
     }
-  }, [isOpen, mode, trip, apiDrivers, defaultDate, defaultRouteId]);
+  }, [isOpen, mode, trip, defaultDate, defaultRouteId]);
 
   // Update form data when drivers are loaded and we're in edit mode
   useEffect(() => {
@@ -876,7 +875,6 @@ export function CreateEditTripModal({
                         clipRule="evenodd"
                       />
                     </svg>
-                    <span>Price automatically formatted with commas</span>
                   </p>
                 </div>
 

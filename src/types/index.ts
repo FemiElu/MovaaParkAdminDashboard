@@ -98,49 +98,7 @@ export interface RevenueSharing {
 }
 
 // Passenger app data models (received via webhooks)
-export interface SlotBooking {
-  id: string;
-  routeScheduleId: string;
-  passenger: {
-    name: string;
-    phone: string;
-    address: string;
-    nextOfKin?: {
-      name: string;
-      phone: string;
-      relationship: string;
-    };
-  };
-  userId?: string;
-  slotNumbers: number[];
-  status: "RESERVED" | "CONFIRMED" | "EXPIRED" | "CANCELLED";
-  reservedAt: number;
-  expiresAt?: number;
-  cancellationDeadline?: number;
-  paymentReference?: string;
-  totalAmount?: number;
-  parkShare?: number;
-  driverShare?: number;
-}
-
-export interface RouteSchedule {
-  id: string;
-  parkId: string;
-  destination: string;
-  date: string;
-  time: string;
-  configuredSlotCount: number;
-  confirmedBookingsCount: number;
-  bookings: string[];
-}
-
-export interface AvailabilityInfo {
-  configuredSlotCount: number;
-  reservedCount: number;
-  confirmedCount: number;
-  slotsLeft: number;
-  nextSlotNumber: number;
-}
+// REMOVED: SlotBooking, RouteSchedule, AvailabilityInfo interfaces were removed as part of webhook feature removal
 
 // Dashboard data structures
 export interface DashboardStats {
@@ -159,10 +117,19 @@ export interface DashboardStats {
 
 export interface LiveBooking {
   id: string;
-  passenger: SlotBooking["passenger"];
+  passenger: {
+    name: string;
+    phone: string;
+    address: string;
+    nextOfKin?: {
+      name: string;
+      phone: string;
+      relationship: string;
+    };
+  };
   destination: string;
   slotNumbers: number[];
-  status: SlotBooking["status"];
+  status: "RESERVED" | "CONFIRMED" | "EXPIRED" | "CANCELLED";
   reservedAt: number;
   expiresAt?: number;
   totalAmount?: number;
@@ -176,29 +143,20 @@ export interface Notification {
   title: string;
   message: string;
   type:
-    | "BOOKING_CREATED"
-    | "BOOKING_CONFIRMED"
-    | "BOOKING_CANCELLED"
-    | "PAYMENT_RECEIVED"
-    | "CAPACITY_ALERT"
-    | "DRIVER_ASSIGNMENT"
-    | "SYSTEM_ALERT";
+  | "BOOKING_CREATED"
+  | "BOOKING_CONFIRMED"
+  | "BOOKING_CANCELLED"
+  | "PAYMENT_RECEIVED"
+  | "CAPACITY_ALERT"
+  | "DRIVER_ASSIGNMENT"
+  | "SYSTEM_ALERT";
   isRead: boolean;
   createdAt: string;
   bookingData?: Record<string, unknown>;
 }
 
 // Webhook payload types
-export interface WebhookPayload {
-  type:
-    | "booking-created"
-    | "booking-confirmed"
-    | "booking-cancelled"
-    | "payment-confirmed";
-  data: SlotBooking;
-  timestamp: number;
-  parkId: string;
-}
+// REMOVED: WebhookPayload interface was removed as part of webhook feature removal
 
 // API response types
 export interface ApiResponse<T> {
@@ -411,11 +369,11 @@ export interface BookingCreateResponse {
 // Notification Types
 export interface NotificationTemplate {
   type:
-    | "TripPublished"
-    | "BookingConfirmed"
-    | "BookingFailed"
-    | "DriverAssigned"
-    | "DriverDetailsAvailable";
+  | "TripPublished"
+  | "BookingConfirmed"
+  | "BookingFailed"
+  | "DriverAssigned"
+  | "DriverDetailsAvailable";
   title: string;
   message: string;
   template: string;

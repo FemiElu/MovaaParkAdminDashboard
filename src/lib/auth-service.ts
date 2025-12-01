@@ -196,89 +196,88 @@ class AuthService {
         // Transform user data from backend to our expected interface
         const user = data.data?.user
           ? {
-              ...data.data.user,
-              // Map user_type array to role for compatibility
-              role: data.data.user.user_type?.includes("ADMIN")
-                ? "PARK_ADMIN"
-                : "SUPER_ADMIN",
-              // Map is_active to isActive for compatibility
-              isActive: data.data.user.is_active,
-              // Create name from first_name and last_name if not present
-              name:
-                data.data.user.name ||
-                `${data.data.user.first_name || ""} ${
-                  data.data.user.last_name || ""
+            ...data.data.user,
+            // Map user_type array to role for compatibility
+            role: data.data.user.user_type?.includes("ADMIN")
+              ? "PARK_ADMIN"
+              : "SUPER_ADMIN",
+            // Map is_active to isActive for compatibility
+            isActive: data.data.user.is_active,
+            // Create name from first_name and last_name if not present
+            name:
+              data.data.user.name ||
+              `${data.data.user.first_name || ""} ${data.data.user.last_name || ""
                 }`.trim(),
-              // Map terminal/park information
-              terminal: data.data.user.terminal
+            // Map terminal/park information
+            terminal: data.data.user.terminal
+              ? {
+                name:
+                  data.data.user.terminal.terminal_name ||
+                  data.data.user.terminal.name,
+                address:
+                  data.data.user.terminal.terminal_address ||
+                  data.data.user.terminal.address,
+                city:
+                  data.data.user.terminal.terminal_city ||
+                  data.data.user.terminal.city,
+                state:
+                  data.data.user.terminal.terminal_state ||
+                  data.data.user.terminal.state,
+                latitude:
+                  data.data.user.terminal.terminal_latitude ||
+                  data.data.user.terminal.latitude,
+                longitude:
+                  data.data.user.terminal.terminal_longitude ||
+                  data.data.user.terminal.longitude,
+              }
+              : undefined,
+            // Map park information (fallback or alternative structure)
+            park: data.data.user.park
+              ? {
+                id: data.data.user.park.id,
+                name:
+                  data.data.user.park.name ||
+                  data.data.user.park.terminal_name,
+                address:
+                  data.data.user.park.address ||
+                  data.data.user.park.terminal_address,
+                city:
+                  data.data.user.park.city ||
+                  data.data.user.park.terminal_city,
+                state:
+                  data.data.user.park.state ||
+                  data.data.user.park.terminal_state,
+                latitude:
+                  data.data.user.park.latitude ||
+                  data.data.user.park.terminal_latitude,
+                longitude:
+                  data.data.user.park.longitude ||
+                  data.data.user.park.terminal_longitude,
+              }
+              : data.data.user.terminal
                 ? {
-                    name:
-                      data.data.user.terminal.terminal_name ||
-                      data.data.user.terminal.name,
-                    address:
-                      data.data.user.terminal.terminal_address ||
-                      data.data.user.terminal.address,
-                    city:
-                      data.data.user.terminal.terminal_city ||
-                      data.data.user.terminal.city,
-                    state:
-                      data.data.user.terminal.terminal_state ||
-                      data.data.user.terminal.state,
-                    latitude:
-                      data.data.user.terminal.terminal_latitude ||
-                      data.data.user.terminal.latitude,
-                    longitude:
-                      data.data.user.terminal.terminal_longitude ||
-                      data.data.user.terminal.longitude,
-                  }
+                  id: data.data.user.terminal.id || "terminal-" + Date.now(),
+                  name:
+                    data.data.user.terminal.terminal_name ||
+                    data.data.user.terminal.name,
+                  address:
+                    data.data.user.terminal.terminal_address ||
+                    data.data.user.terminal.address,
+                  city:
+                    data.data.user.terminal.terminal_city ||
+                    data.data.user.terminal.city,
+                  state:
+                    data.data.user.terminal.terminal_state ||
+                    data.data.user.terminal.state,
+                  latitude:
+                    data.data.user.terminal.terminal_latitude ||
+                    data.data.user.terminal.latitude,
+                  longitude:
+                    data.data.user.terminal.terminal_longitude ||
+                    data.data.user.terminal.longitude,
+                }
                 : undefined,
-              // Map park information (fallback or alternative structure)
-              park: data.data.user.park
-                ? {
-                    id: data.data.user.park.id,
-                    name:
-                      data.data.user.park.name ||
-                      data.data.user.park.terminal_name,
-                    address:
-                      data.data.user.park.address ||
-                      data.data.user.park.terminal_address,
-                    city:
-                      data.data.user.park.city ||
-                      data.data.user.park.terminal_city,
-                    state:
-                      data.data.user.park.state ||
-                      data.data.user.park.terminal_state,
-                    latitude:
-                      data.data.user.park.latitude ||
-                      data.data.user.park.terminal_latitude,
-                    longitude:
-                      data.data.user.park.longitude ||
-                      data.data.user.park.terminal_longitude,
-                  }
-                : data.data.user.terminal
-                ? {
-                    id: data.data.user.terminal.id || "terminal-" + Date.now(),
-                    name:
-                      data.data.user.terminal.terminal_name ||
-                      data.data.user.terminal.name,
-                    address:
-                      data.data.user.terminal.terminal_address ||
-                      data.data.user.terminal.address,
-                    city:
-                      data.data.user.terminal.terminal_city ||
-                      data.data.user.terminal.city,
-                    state:
-                      data.data.user.terminal.terminal_state ||
-                      data.data.user.terminal.state,
-                    latitude:
-                      data.data.user.terminal.terminal_latitude ||
-                      data.data.user.terminal.latitude,
-                    longitude:
-                      data.data.user.terminal.terminal_longitude ||
-                      data.data.user.terminal.longitude,
-                  }
-                : undefined,
-            }
+          }
           : undefined;
 
         // Debug: Log the transformed user data
@@ -604,24 +603,60 @@ class AuthService {
         });
       }
 
-      // Clear local storage
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("refresh_token");
+      // Clear ALL user-specific data from localStorage to prevent data leakage across accounts
+      this.clearAllUserData();
 
       return {
         success: true,
         message: "Logged out successfully",
       };
     } catch {
-      // Clear local storage even if API call fails
-      localStorage.removeItem("auth_token");
-      localStorage.removeItem("refresh_token");
+      // Clear ALL user-specific data even if API call fails
+      this.clearAllUserData();
 
       return {
         success: true,
         message: "Logged out locally",
       };
     }
+  }
+
+  /**
+   * Clear ALL user-specific data from localStorage
+   * This is critical for preventing data leakage across different user accounts
+   */
+  private clearAllUserData(): void {
+    console.log("Clearing all user-specific data from localStorage...");
+
+    // Authentication tokens
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("refresh_token");
+
+    // Driver-related data (CRITICAL - prevents driver data leakage)
+    localStorage.removeItem("driver_routes");
+    localStorage.removeItem("driver_routes_by_phone");
+
+    // Terminal/Park data
+    localStorage.removeItem("movaa_terminal_data");
+
+    // Clear all park-specific driver data (drivers_parkId pattern)
+    // This ensures we don't leak driver data across different park admin accounts
+    if (typeof window !== "undefined") {
+      const keys = Object.keys(localStorage);
+      const driverRelatedKeys = keys.filter(
+        (key) => key.startsWith("drivers_") || key.startsWith("driver_")
+      );
+      driverRelatedKeys.forEach((key) => {
+        localStorage.removeItem(key);
+        console.log(`Cleared localStorage key: ${key}`);
+      });
+    }
+
+    // Any other user-specific cached data
+    // If new localStorage keys are added in the future, they should be added here
+    // to ensure complete data isolation between accounts
+
+    console.log("All user-specific data cleared from localStorage");
   }
 
   /**
@@ -795,6 +830,14 @@ class AuthService {
    */
   getToken(): string | null {
     return localStorage.getItem("auth_token");
+  }
+
+  /**
+   * Clear all user-specific data from localStorage
+   * Public method that can be called when tokens are invalid or expired
+   */
+  clearUserData(): void {
+    this.clearAllUserData();
   }
 }
 

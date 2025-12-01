@@ -474,50 +474,47 @@ export function TripDetailsClient({ tripId }: TripDetailsClientProps) {
                           <div className="text-sm font-medium text-gray-900">
                             {passenger.first_name} {passenger.last_name}
                           </div>
-                       
+
                           <div className="text-sm text-gray-500">
-                          {(typeof passenger.phone_number === 'string' 
-                            ? passenger.phone_number
+                            {(typeof passenger.phone_number === 'string'
+                              ? passenger.phone_number
                                 .replace(/^(\+?234|234)/, "0")
                                 .replace(/\s+/g, "")
-                            : passenger.phone_number)}
-                        </div>
+                              : passenger.phone_number)}
+                          </div>
 
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            isPassengerPaid(passenger)
-                              ? "bg-green-100 text-green-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPassengerPaid(passenger)
+                            ? "bg-green-100 text-green-800"
+                            : "bg-yellow-100 text-yellow-800"
+                            }`}
                           title={isPassengerPaid(passenger) ? "Confirmed (paid)" : "Reserved (hold)"}
                         >
                           Seat {passenger.seat_number}
                         </span>
                       </td>
-                     <td className="px-6 py-4 whitespace-nowrap">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      passenger.boarding_status === "boarded"
-                        ? "bg-green-100 text-green-800"
-                        : passenger.boarding_status === "checked_in"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {passenger.boarding_status?.replace("_", " ") || "N/A"}
-                  </span>
-                </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${passenger.boarding_status === "boarded"
+                            ? "bg-green-100 text-green-800"
+                            : passenger.boarding_status === "checked_in"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
+                            }`}
+                        >
+                          {passenger.boarding_status?.replace("_", " ") || "N/A"}
+                        </span>
+                      </td>
 
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            isPassengerPaid(passenger)
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isPassengerPaid(passenger)
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                            }`}
                         >
                           {isPassengerPaid(passenger) ? "Paid" : "Pending"}
                         </span>
