@@ -27,6 +27,7 @@ export interface User {
     longitude?: number;
   };
   terminal?: {
+    id?: string;
     name: string;
     address: string;
     city: string;
@@ -632,24 +633,34 @@ class AuthService {
     localStorage.removeItem("auth_token");
     localStorage.removeItem("refresh_token");
 
-    // Driver-related data (CRITICAL - prevents driver data leakage)
+    // Legacy driver-related data (old non-scoped keys)
     localStorage.removeItem("driver_routes");
     localStorage.removeItem("driver_routes_by_phone");
 
     // Terminal/Park data
     localStorage.removeItem("movaa_terminal_data");
 
-    // Clear all park-specific driver data (drivers_parkId pattern)
+    // Clear ALL driver-related data (both old and new terminal-scoped keys)
     // This ensures we don't leak driver data across different park admin accounts
     if (typeof window !== "undefined") {
       const keys = Object.keys(localStorage);
+
+      // Find all driver-related keys including terminal-scoped ones
       const driverRelatedKeys = keys.filter(
-        (key) => key.startsWith("drivers_") || key.startsWith("driver_")
+        (key) =>
+          key.startsWith("drivers_") ||
+          key.startsWith("driver_routes_") ||
+          key.startsWith("driver_routes_by_phone_") ||
+          key === "driver_routes" ||
+          key === "driver_routes_by_phone"
       );
+
       driverRelatedKeys.forEach((key) => {
         localStorage.removeItem(key);
         console.log(`Cleared localStorage key: ${key}`);
       });
+
+      console.log(`Cleared ${driverRelatedKeys.length} driver-related localStorage keys`);
     }
 
     // Any other user-specific cached data

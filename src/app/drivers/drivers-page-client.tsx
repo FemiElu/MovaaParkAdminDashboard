@@ -10,12 +10,14 @@ import { DriverPagination } from "@/components/drivers/driver-pagination";
 import { Driver, RouteConfig } from "@/types";
 import { driverApiService } from "@/lib/driver-api-service";
 import { routeApiService } from "@/lib/route-api-service";
+import { useAuth } from "@/lib/auth-context";
 
 interface DriversPageClientProps {
   parkId: string;
 }
 
 export default function DriversPageClient({ parkId }: DriversPageClientProps) {
+  const { user } = useAuth(); // Get authenticated user for terminal validation
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [routes, setRoutes] = useState<RouteConfig[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,22 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
   useEffect(() => {
     async function fetchData() {
       try {
+        // Defensive check: Ensure user is authenticated
+        if (!user) {
+          console.warn("⚠️ User not authenticated - cannot fetch drivers");
+          setDrivers([]);
+          setRoutes([]);
+          setLoading(false);
+          return;
+        }
+
+        // Get terminal ID for logging and validation
+        const terminalId =
+          user?.terminal?.id || user?.park?.id || user?.parkId || "UNKNOWN";
+        console.log(
+          `=== FETCHING DATA FOR USER: ${user?.email || "Unknown"} (Terminal: ${terminalId}) ===`
+        );
+
         // Fetch routes first
         const routesResponse = await routeApiService.getAllRoutes();
         console.log("Routes API response:", routesResponse);
@@ -77,8 +95,11 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
         setRoutes(fetchedRoutes);
         console.log("SET ROUTES:", fetchedRoutes.length, "routes");
 
-        // Now fetch drivers with routes available
-        const driversResponse = await driverApiService.getAllDrivers();
+        // Now fetch drivers with routes available - PASS USER for terminal filtering
+        const driversResponse = await driverApiService.getAllDrivers(
+          undefined,
+          user
+        );
         console.log("Drivers API response:", driversResponse);
 
         if (driversResponse.success) {
@@ -110,12 +131,15 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
 
               console.log("Converting driver:", d);
 
-              // Get the driver's route information from localStorage
+              // Get the driver's route information from user-scoped localStorage
               let assignedRoute = "N/A";
               try {
-                const rawStorage = localStorage.getItem("driver_routes");
+                // Use terminal-scoped localStorage key for isolation
+                const storageKey = `driver_routes_${terminalId}`;
+                const rawStorage = localStorage.getItem(storageKey);
                 console.log("=== LOADING DRIVER ROUTE INFO ===");
                 console.log("Driver ID:", d.user.id);
+                console.log(`Storage key: ${storageKey}`);
                 console.log("Raw localStorage:", rawStorage);
 
                 const driverRoutes = JSON.parse(rawStorage || "{}");
@@ -163,8 +187,8 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
                     `✗ No route info for driver ${d.user.first_name} (${d.user.id})`
                   );
                   try {
-                    const pendingRaw =
-                      localStorage.getItem("driver_routes_by_phone") || "{}";
+                    const pendingKey = `driver_routes_by_phone_${terminalId}`;
+                    const pendingRaw = localStorage.getItem(pendingKey) || "{}";
                     const pending: Record<
                       string,
                       { routeId: string; timestamp: number }
@@ -213,8 +237,8 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
                 id: d.user.id,
                 parkId: parkId || "default-park",
                 name:
-                  `${d.user.first_name || ""} ${d.user.last_name || ""
-                    }`.trim() || "Unknown Driver",
+                  `${d.user.first_name || ""} ${d.user.last_name || ""}`.trim() ||
+                  "Unknown Driver",
                 phone: d.user.phone_number || "Unknown",
                 licenseNumber: "N/A", // No license number in this response structure
                 licenseExpiry: undefined,
@@ -247,7 +271,7 @@ export default function DriversPageClient({ parkId }: DriversPageClientProps) {
     }
 
     fetchData();
-  }, [parkId]);
+  }, [parkId, user]); // Re-fetch when user changes (important for data isolation!)
 
   // Calculate driver counts by route
   const driverCounts = useMemo(() => {

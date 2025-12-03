@@ -10,6 +10,7 @@ import { authService, SignupData } from "@/lib/auth-service";
 import { formatNigerianPhoneNumber } from "@/lib/phone-utils";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import LocationPicker, { LocationData } from "@/components/location/location-picker";
+import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 
 const signupSchema = z
   .object({
@@ -31,6 +32,8 @@ function SignupForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [locationData, setLocationData] = useState<LocationData | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
 
   const {
@@ -181,13 +184,26 @@ function SignupForm() {
                 >
                   Password *
                 </label>
-                <input
-                  {...register("password")}
-                  type="password"
-                  autoComplete="new-password"
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="Create a password"
-                />
+                <div className="relative mt-1">
+                  <input
+                    {...register("password")}
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm pr-10"
+                    placeholder="Create a password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" aria-hidden="true" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-600">
                     {errors.password.message}
@@ -203,13 +219,26 @@ function SignupForm() {
                 >
                   Confirm Password *
                 </label>
-                <input
-                  {...register("confirmPassword")}
-                  type="password"
-                  autoComplete="new-password"
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm"
-                  placeholder="Confirm your password"
-                />
+                <div className="relative mt-1">
+                  <input
+                    {...register("confirmPassword")}
+                    type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-green-500 focus:border-green-500 sm:text-sm pr-10"
+                    placeholder="Confirm your password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeSlashIcon className="h-5 w-5" aria-hidden="true" />
+                    ) : (
+                      <EyeIcon className="h-5 w-5" aria-hidden="true" />
+                    )}
+                  </button>
+                </div>
                 {errors.confirmPassword && (
                   <p className="mt-1 text-sm text-red-600">
                     {errors.confirmPassword.message}

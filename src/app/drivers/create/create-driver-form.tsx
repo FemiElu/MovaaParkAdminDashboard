@@ -5,18 +5,24 @@ import { useRouter } from "next/navigation";
 import DriverForm from "@/components/drivers/driver-form";
 import { DriverFormData } from "@/lib/driver";
 import { driverApiService } from "@/lib/driver-api-service";
+import { useAuth } from "@/lib/auth-context";
 
 interface CreateDriverFormProps {
   parkId: string;
 }
 
 export default function CreateDriverForm({ parkId }: CreateDriverFormProps) {
+  const { user } = useAuth(); // Get authenticated user for terminal scoping
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (data: DriverFormData) => {
     setIsLoading(true);
     try {
+      // Get terminal ID for scoped storage
+      const terminalId =
+        user?.terminal?.id || user?.park?.id || user?.parkId || "default";
+
       // Extract first and last names from full name
       const [first_name, ...rest] = (data.name || "").trim().split(/\s+/);
       const last_name = rest.join(" ") || "-";
@@ -52,7 +58,7 @@ export default function CreateDriverForm({ parkId }: CreateDriverFormProps) {
         throw new Error(errorMessage);
       }
 
-      // Store driver route information in localStorage
+      // Store driver route information in terminal-scoped localStorage
       console.log("Checking if we can store route info...");
       console.log("response.data?.user?.id exists?", !!response.data?.user?.id);
 
@@ -62,20 +68,20 @@ export default function CreateDriverForm({ parkId }: CreateDriverFormProps) {
           timestamp: Date.now(), // Store timestamp for debugging
         };
 
-        // Get existing driver routes from localStorage
-        const existingData = localStorage.getItem("driver_routes") || "{}";
+        // Use terminal-scoped localStorage key for data isolation
+        const storageKey = `driver_routes_${terminalId}`;
+        const existingData = localStorage.getItem(storageKey) || "{}";
         const driverRoutes = JSON.parse(existingData);
         driverRoutes[response.data.user.id] = routeInfo;
-        localStorage.setItem("driver_routes", JSON.stringify(driverRoutes));
+        localStorage.setItem(storageKey, JSON.stringify(driverRoutes));
 
         console.log("=== STORING DRIVER ROUTE INFO ===");
+        console.log("Terminal ID:", terminalId);
+        console.log("Storage key:", storageKey);
         console.log("Driver ID:", response.data.user.id);
         console.log("Route ID stored:", data.route_id);
         console.log("Route info object:", routeInfo);
-        console.log(
-          "localStorage driver_routes:",
-          localStorage.getItem("driver_routes")
-        );
+        console.log(`localStorage ${storageKey}:`, localStorage.getItem(storageKey));
 
         // Force a small delay to ensure localStorage is persisted
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -89,21 +95,20 @@ export default function CreateDriverForm({ parkId }: CreateDriverFormProps) {
         try {
           const phone = data.phone;
           if (phone) {
-            const pendingRaw =
-              localStorage.getItem("driver_routes_by_phone") || "{}";
+            const pendingKey = `driver_routes_by_phone_${terminalId}`;
+            const pendingRaw = localStorage.getItem(pendingKey) || "{}";
             const pending: Record<
               string,
               { routeId: string; timestamp: number }
             > = JSON.parse(pendingRaw);
             pending[phone] = { routeId: data.route_id, timestamp: Date.now() };
-            localStorage.setItem(
-              "driver_routes_by_phone",
-              JSON.stringify(pending)
-            );
+            localStorage.setItem(pendingKey, JSON.stringify(pending));
             console.log(
               "Stored pending route mapping by phone:",
               phone,
-              pending[phone]
+              pending[phone],
+              "in key:",
+              pendingKey
             );
           }
         } catch (e) {

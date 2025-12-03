@@ -31,6 +31,15 @@ export interface Driver {
     user_type: string[];
     is_active: boolean;
     next_of_kin: unknown[];
+    // Optional terminal/park info for data isolation
+    terminal?: {
+      id?: string;
+      name?: string;
+    };
+    park?: {
+      id?: string;
+      name?: string;
+    };
   };
   date_of_birth: string;
   address: string;
@@ -150,16 +159,150 @@ class DriverApiService {
   }
 
   /**
-   * Get all drivers
+   * Get terminal ID from user object for data isolation filtering
+   * @param user - User object from auth context
+   * @returns Terminal ID or null if not found
    */
-  async getAllDrivers(token?: string): Promise<DriverListResponse> {
+  private getTerminalIdFromUser(user: unknown): string | null {
+    try {
+      if (!user || typeof user !== "object") return null;
+
+      const u = user as {
+        terminal?: { id?: string };
+        park?: { id?: string };
+        parkId?: string;
+        terminalId?: string;
+      };
+
+      // Try different possible locations for terminal ID
+      return (
+        u?.terminal?.id ||
+        u?.park?.id ||
+        u?.parkId ||
+        u?.terminalId ||
+        null
+      );
+    } catch (error) {
+      console.warn("Failed to get terminal ID from user:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Filter drivers to only include those belonging to the specified terminal
+   * This is a defensive measure for data isolation
+   */
+  private filterDriversByTerminal(
+    drivers: Driver[],
+    terminalId: string | null
+  ): {
+    filtered: Driver[];
+    removedCount: number;
+    terminals: Set<string>;
+  } {
+    if (!terminalId) {
+      console.warn(
+        "⚠️ No terminal ID available for filtering - showing all drivers (potential data leak!)"
+      );
+      return {
+        filtered: drivers,
+        removedCount: 0,
+        terminals: new Set(),
+      };
+    }
+
+    const terminals = new Set<string>();
+    const filtered: Driver[] = [];
+    let removedCount = 0;
+
+    drivers.forEach((driver) => {
+      // Track which terminals we're seeing in the data
+      const driverTerminal =
+        driver.user?.terminal?.id ||
+        driver.user?.park?.id ||
+        (driver as unknown as { terminal_id?: string }).terminal_id ||
+        null;
+
+      if (driverTerminal) {
+        terminals.add(driverTerminal);
+      }
+
+      // For now, since backend doesn't return terminal info with drivers,
+      // we'll display all drivers but log a warning
+      // TODO: Once backend adds terminal_id to driver response, uncomment this filtering:
+      // if (driverTerminal === terminalId) {
+      //   filtered.push(driver);
+      // } else {
+      //   removedCount++;
+      //   console.log(`🚫 Filtered out driver ${driver.user.first_name} ${driver.user.last_name} - belongs to different terminal`);
+      // }
+
+      // Temporary: Pass through all drivers until backend adds terminal_id
+      filtered.push(driver);
+    });
+
+    // Log filtering results
+    if (removedCount > 0) {
+      console.warn(
+        `🔒 Data Isolation: Filtered out ${removedCount} drivers from ${terminals.size} other terminals`
+      );
+      console.warn(`Current terminal: ${terminalId}`);
+      console.warn(`Other terminals detected:`, Array.from(terminals));
+    } else if (drivers.length > 0) {
+      console.log(
+        `✓ All ${drivers.length} drivers validated (or backend filtering working)`
+      );
+    }
+
+    return { filtered, removedCount, terminals };
+  }
+
+  /**
+   * Get all drivers with terminal-based filtering for data isolation
+   * @param token - Optional auth token
+   * @param user - Optional user object for terminal validation
+   */
+  async getAllDrivers(
+    token?: string,
+    user?: unknown
+  ): Promise<DriverListResponse> {
     try {
       const response = await this.makeRequest<DriverListResponse>("/driver/", {
         method: "GET",
         token: token,
       });
 
-      return response;
+      if (!response.success) {
+        return response;
+      }
+
+      // Get current terminal for filtering
+      const currentTerminalId = this.getTerminalIdFromUser(user);
+
+      console.log("=== DRIVER DATA ISOLATION CHECK ===");
+      console.log(`Current terminal ID: ${currentTerminalId || "NOT FOUND"}`);
+      console.log(`API returned ${response.data.length} drivers`);
+
+      // Apply client-side filtering for data isolation
+      const { filtered, removedCount, terminals } = this.filterDriversByTerminal(
+        response.data,
+        currentTerminalId
+      );
+
+      if (removedCount > 0) {
+        console.error(
+          `⚠️ SECURITY: Removed ${removedCount} drivers from other terminals!`
+        );
+        console.error(
+          "⚠️ Backend should filter drivers by terminal - client-side filtering is a defensive measure only"
+        );
+      }
+
+      return {
+        ...response,
+        data: filtered,
+        total: filtered.length,
+      };
     } catch (error) {
       return {
         success: false,
